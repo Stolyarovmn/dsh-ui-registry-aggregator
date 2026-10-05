@@ -209,7 +209,7 @@ test('plugin icons use a safe repository-local README logo when the manifest has
   const fetchImpl = async input => {
     const url = new URL(input)
     if (url.hostname === 'registry.npmjs.org') {
-      return Response.json({ name: '@acme/dsh-readme-icon', version: '1.2.5' })
+      return Response.json({ name: '@acme/dsh-readme-icon', version: '1.2.5', repository: { url: 'git+https://github.com/acme/dsh-readme-icon.git' } })
     }
     if (url.hostname === 'raw.githubusercontent.com' && url.pathname.endsWith('/package.json')) {
       return Response.json({ name: '@acme/dsh-readme-icon', version: '1.2.5' })
@@ -228,7 +228,6 @@ test('plugin icons use a safe repository-local README logo when the manifest has
       key: 'readme-icon',
       packageName: '@acme/dsh-readme-icon',
       version: '1.2.5',
-      repository: 'https://github.com/acme/dsh-readme-icon',
     },
   ], { fetchImpl, resolveHost: publicResolver })
 

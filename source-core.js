@@ -961,12 +961,15 @@ async function resolveNpmIcon(item, options) {
   if (!packageName || !version) return undefined
   const manifest = await npmManifest(item, options)
   const icon = safeIconPath(manifest?.icon)
-  if (!icon) return undefined
-  const packagePath = packageName.startsWith('@')
-    ? packageName.split('/').map(part => encodeURIComponent(part)).join('/')
-    : encodeURIComponent(packageName)
-  const iconUrl = 'https://unpkg.com/' + packagePath + '@' + encodeURIComponent(version) + '/' + encodedPath(icon.path)
-  return iconDataFromUrl(iconUrl, icon.mediaType, options)
+  if (icon) {
+    const packagePath = packageName.startsWith('@')
+      ? packageName.split('/').map(part => encodeURIComponent(part)).join('/')
+      : encodeURIComponent(packageName)
+    const iconUrl = 'https://unpkg.com/' + packagePath + '@' + encodeURIComponent(version) + '/' + encodedPath(icon.path)
+    return iconDataFromUrl(iconUrl, icon.mediaType, options)
+  }
+  const parts = githubRepositoryParts(manifestRepositoryUrl(manifest))
+  return parts ? githubReadmeIcon(parts, options) : undefined
 }
 
 async function githubReadmeIcon(parts, options) {
@@ -994,7 +997,12 @@ async function githubReadmeIcon(parts, options) {
 async function resolveGithubIcon(item, options) {
   const parts = githubRepositoryParts(item?.repository)
   if (!parts) return undefined
-  const manifest = await githubManifest(item, options)
+  let manifest
+  try {
+    manifest = await githubManifest(item, options)
+  } catch {
+    manifest = undefined
+  }
   const icon = safeIconPath(manifest?.icon)
   if (icon) {
     const iconUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + encodedPath(icon.path)
