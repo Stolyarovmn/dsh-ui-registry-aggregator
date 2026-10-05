@@ -1,0 +1,41 @@
+name: Build main surface RC2
+
+on:
+  push:
+    branches:
+      - feat/plugins-main-section
+    paths:
+      - .github/workflows/build-main-surface-rc2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/plugins-main-section
+          fetch-depth: 0
+      - name: Transform RC
+        run: python .github/scripts/build-main-surface-rc.py
+      - name: Validate plugin
+        run: |
+          node --check client.js
+          node --check index.js
+          node --check source-core.js
+          npm test
+          npm pack --dry-run
+          git diff --check
+      - name: Commit RC candidate
+        run: |
+          rm .github/workflows/build-main-surface-rc.yml
+          rm .github/workflows/build-main-surface-rc2.yml
+          rm .github/scripts/build-main-surface-rc.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: add native Plugins main section RC"
+          git push origin HEAD:feat/plugins-main-section
