@@ -25,6 +25,15 @@ jobs:
         run: npm install --package-lock=false --legacy-peer-deps
       - name: Transform RC
         run: python .github/scripts/build-main-surface-rc.py
+      - name: Normalize generated README
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          path = Path('README.md')
+          text = path.read_text().replace("Current test version: `0.5.2-rc.2`  \n", "Current test version: `0.5.2-rc.2`\n")
+          path.write_text(text)
+          PY
       - name: Validate plugin
         run: |
           node --check client.js
