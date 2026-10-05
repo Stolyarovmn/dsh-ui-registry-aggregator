@@ -25,15 +25,24 @@ jobs:
         run: npm install --package-lock=false --legacy-peer-deps
       - name: Transform RC
         run: python .github/scripts/build-main-surface-rc.py
-      - name: Normalize generated README
+      - name: Normalize generated text and recheck host patch
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
-          path = Path('README.md')
-          text = path.read_text().replace("Current test version: `0.5.2-rc.2`  \n", "Current test version: `0.5.2-rc.2`\n")
-          path.write_text(text)
+
+          readme = Path('README.md')
+          readme.write_text(readme.read_text().replace("Current test version: `0.5.2-rc.2`  \n", "Current test version: `0.5.2-rc.2`\n"))
+
+          patch = Path('docs/dsh-v0.2.0-rc.2-plugins-main-section.patch')
+          lines = patch.read_text().splitlines()
+          patch.write_text('\n'.join(line.rstrip() if line.startswith('+') and not line.startswith('+++') else line for line in lines) + '\n')
           PY
+
+          rm -rf /tmp/dsh-main-section-recheck
+          git clone --depth 1 --branch dsh-v0.2.0-rc.2 https://github.com/deepseek-ai/deepseek-harness.git /tmp/dsh-main-section-recheck
+          test "$(git -C /tmp/dsh-main-section-recheck rev-parse HEAD)" = "639ed015397290b3745d163aafe02ffee4aa3f84"
+          git -C /tmp/dsh-main-section-recheck apply --check "$GITHUB_WORKSPACE/docs/dsh-v0.2.0-rc.2-plugins-main-section.patch"
       - name: Validate plugin
         run: |
           node --check client.js
