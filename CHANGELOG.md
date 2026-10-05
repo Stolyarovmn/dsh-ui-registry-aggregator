@@ -2,6 +2,26 @@
 
 All notable changes to Registry Aggregator are documented here.
 
+## [0.5.1] - 2026-10-05
+
+### Changed
+
+- Browse artwork discovery now recovers a GitHub repository from npm manifest metadata before trying the safe repository-local README artwork fallback.
+- Installed update rows reuse the native Plugin Manager `BundleInfo.meta.icon` instead of showing a generic plugin glyph when native artwork is already available.
+- Package update actions now use a distinct two-arrow Update glyph, while content/list refresh keeps the single-arrow Refresh glyph.
+
+### Fixed
+
+- Fixed missing artwork for npm-discovered plugins that omit the official top-level `icon` field but expose a GitHub repository with a local README logo/icon.
+- Fixed GitHub artwork fallback so a missing or unreadable repository `package.json` no longer prevents safe README artwork discovery.
+- Kept artwork loading bounded to repository-local SVG/PNG/JPEG/WebP files under the existing 256 KiB limit.
+
+### Validation
+
+- Promoted the manually verified `0.5.1-rc.1` line.
+- Repository tests, JavaScript syntax checks, npm package dry-run validation, and isolated DSH `0.2.0-rc.2` install smoke tests passed before release.
+- Real Harness UI verification covered Browse artwork and the visual distinction between Refresh and package Update actions.
+
 ## [0.5.0] - 2026-10-05
 
 ### Added
