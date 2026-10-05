@@ -8,7 +8,7 @@ const host = await readFile(new URL('../index.js', import.meta.url), 'utf8')
 const patch = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
 
 test('targets only DSH 0.2.x', () => {
-  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh'], '>=0.2.0-rc.2 <0.3.0')
+  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh'], '>=0.2.1-alpha.1 <0.3.0')
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-plugin-manager'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'))
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-connection'))
