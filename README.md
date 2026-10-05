@@ -3,8 +3,14 @@
 This branch is the clean DSH `0.2.0` implementation line. It does **not** carry compatibility code or UI workarounds from DSH `0.1.x`.
 
 Current stable version: `0.5.1`  
-Current test version: `0.5.2-rc.1`  
+Current test version: `0.5.2-rc.2`
 Current validation baseline: DSH `v0.2.0-rc.2`. Compatibility checks use the actual running DSH version from the active installation manifest rather than a hardcoded RC.
+
+## Native Plugins main-page integration
+
+`0.5.2-rc.2` can render Registry Aggregator directly on the native Plugins list through the additive `plugins.main.section` slot. Stock DSH `0.2.0-rc.2` does not declare that slot, so this branch includes an exact version-matched Harness patch at `docs/dsh-v0.2.0-rc.2-plugins-main-section.patch`. The existing `plugins.bundle.config` registration remains as a fallback on stock Harness builds.
+
+For manual UI validation use the instructions in `docs/DSH_0.2.0_RC2_MAIN_SECTION.md`.
 
 ## Install from npm
 

@@ -1863,8 +1863,9 @@ window.__ModuleLoader__.load({
     }
 
     function RegistryAggregator({ t, view }) {
+      const active = view === undefined || view === 'page'
       const [tab, setTab] = React.useState('sources')
-      const updateDiscovery = useUpdateDiscovery(view === 'page')
+      const updateDiscovery = useUpdateDiscovery(active)
       const formState = React.useSyncExternalStore(
         listener => sourceConfigForm.subscribe(listener),
         () => sourceConfigForm.getSnapshot(),
@@ -1874,7 +1875,7 @@ window.__ModuleLoader__.load({
         state: formState,
         mutate: (operations, expectedRevision) => sourceConfigForm.mutate(operations, expectedRevision),
       }), [formState])
-      if (view !== 'page') return null
+      if (!active) return null
       const updateCount = updateDiscovery.state.items.length
       const updateLabel = h('span', { className: 'ra-tab-label' },
         t('updates'),
@@ -1931,11 +1932,18 @@ window.__ModuleLoader__.load({
         sourceConfigForm = ctx.configForms.get(HOST_ENTRY)
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'registry-aggregator: locale')
         ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
+          ctx.slots.inject('plugins.main.section', () => ctx.slots.register({
+            name: 'plugins.main.section',
+            id: 'registry-aggregator',
+            order: 100,
+            locale: NS,
+          }, RegistryAggregator))), 'registry-aggregator: Plugins main page')
+        ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
           ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
             name: 'plugins.bundle.config',
             key: PACKAGE,
             locale: NS,
-          }, RegistryAggregator))), 'registry-aggregator: bundle page')
+          }, RegistryAggregator))), 'registry-aggregator: bundle page fallback')
       },
     }
   },

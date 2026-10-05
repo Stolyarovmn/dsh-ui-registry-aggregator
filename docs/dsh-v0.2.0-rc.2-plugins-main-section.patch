@@ -1,0 +1,58 @@
+diff --git a/packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx b/packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx
+index 9bd3992..09e73b2 100644
+--- a/packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx
++++ b/packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx
+@@ -40,7 +40,7 @@ export type PluginManagerPageProps =
+   PropsRuntime<'main'>
+   & PropsLocale<'pluginManager'>
+   & PropsRenderSlots<
+-    | 'plugins.item' | 'plugins.bundle.config' | 'plugins.row.config' | 'plugins.bundle.activation'
++    | 'plugins.main.section' | 'plugins.item' | 'plugins.bundle.config' | 'plugins.row.config' | 'plugins.bundle.activation'
+     | 'plugins.detail.actions' | 'plugins.detail.badge' | 'plugins.detail.section'
+   >
+   & InjectFace<PluginManagerFace>
+@@ -1442,6 +1442,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
+             </>
+           )
+         : null}
++      {loaded && showsCards ? renderSlot('plugins.main.section', {}) : null}
+       {showsCards && activated !== undefined && !state.install.open
+         ? renderSlot('plugins.bundle.activation', {
+           packageName: activated.name,
+diff --git a/packages/client/ui-plugin-manager/src/client/index.ts b/packages/client/ui-plugin-manager/src/client/index.ts
+index a568db4..c874a0e 100644
+--- a/packages/client/ui-plugin-manager/src/client/index.ts
++++ b/packages/client/ui-plugin-manager/src/client/index.ts
+@@ -116,6 +116,7 @@ export function apply(ctx: ClientContext): void {
+       store,
+       inject: () => face,
+       children: {
++        'plugins.main.section': { kind: 'list', scope: 'root' },
+         'plugins.item': { kind: 'list', scope: 'root' },
+         'plugins.bundle.activation': { kind: 'keyed', scope: 'root' },
+         'plugins.bundle.config': { kind: 'keyed', scope: 'root' },
+diff --git a/packages/client/ui-plugin-manager/src/client/slot-contract.ts b/packages/client/ui-plugin-manager/src/client/slot-contract.ts
+index 4c63681..10bed24 100644
+--- a/packages/client/ui-plugin-manager/src/client/slot-contract.ts
++++ b/packages/client/ui-plugin-manager/src/client/slot-contract.ts
+@@ -74,6 +74,8 @@ export interface PluginActivationOwnerProps {
+ 
+ declare module '@deepseek-ai/dsh-client-ui-slots' {
+   interface SlotMap {
++    /** Additive sections rendered on the Plugins list after the native Official and Installed groups. */
++    'plugins.main.section': { kind: 'list'; scope: 'root'; owner: Record<never, never> }
+     /** Optional guidance after the user enables a bundle from the list, keyed by npm package name. */
+     'plugins.bundle.activation': { kind: 'keyed'; scope: 'root'; owner: PluginActivationOwnerProps }
+     /**
+diff --git a/packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx b/packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx
+index 155a15c..a10b35c 100644
+--- a/packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx
++++ b/packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx
+@@ -147,6 +147,7 @@ describe('ui-plugin-manager browser plugin', () => {
+     expect(icon.locale).toBe(NS)
+     expect(resolveSlotLabel(icon.options.label)).toBe('插件')
+     // The page declares the slots a plugin's configuration arrives through, and binds their projection beside its state.
++    expect(b.slots.spec('plugins.main.section')).toMatchObject({ kind: 'list', scope: 'root' })
+     expect(b.slots.spec('plugins.item')).toMatchObject({ kind: 'list', scope: 'root' })
+     expect(b.slots.spec('plugins.bundle.config')).toMatchObject({ kind: 'keyed', scope: 'root' })
+     expect(b.slots.spec('plugins.row.config')).toMatchObject({ kind: 'keyed', scope: 'root' })
