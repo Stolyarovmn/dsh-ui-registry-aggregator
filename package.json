@@ -15,7 +15,7 @@
     "./locale/*.json": "./locale/*.json"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node .github/apply-main-surface.mjs && node --test test/*.test.js",
     "test:pack": "npm pack --dry-run --json"
   },
   "files": [
