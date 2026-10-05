@@ -2,8 +2,21 @@
 
 This branch is the clean DSH `0.2.0` implementation line. It does **not** carry compatibility code or UI workarounds from DSH `0.1.x`.
 
-Current test version: `0.5.0-rc.14`  
+Current stable version: `0.5.0`  
 Current validation baseline: DSH `v0.2.0-rc.2`. Compatibility checks use the actual running DSH version from the active installation manifest rather than a hardcoded RC.
+
+## Install from npm
+
+```powershell
+$DSH_VERSION = "0.2.0-rc.2"
+$PROFILE = "dsh-020-test"
+$env:DSH_HOME = "$env:USERPROFILE\.dsh-020-test"
+
+pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" plugin --profile $PROFILE add "@stolyarovmn/dsh-ui-registry-aggregator@0.5.0"
+pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile $PROFILE
+```
+
+The package declares DSH compatibility as `>=0.2.0-rc.2 <0.3.0`. Registry compatibility badges are evaluated against the DSH version that is actually running.
 
 ## Current milestone
 
@@ -24,8 +37,8 @@ Implemented in this milestone:
 - no duplicate `Installed` view;
 - live federated Browse search across enabled npm, GitHub, custom JSON, and corporate sources;
 - compact single-row source/release/freshness/tag/compatibility/page-size filters on desktop, with responsive wrapping below 900px, multi-source metadata, and 20/50/100 pagination; compatibility uses the native DSH shield contour as its neutral filter icon;
-- combinable multi-sort criteria for relevance, stars, downloads, freshness, and name with per-criterion direction; when several are active they contribute equally through percentile-normalized composite ranking, so every selected criterion can affect the order; active criteria use a subtle native-style fill without priority badges;
-- npm 30-day download enrichment plus lazy paired `30d | total` stats for visible npm rows; lifetime totals are summed from the package creation date (or npm's 2015-01-10 data floor) in ≤540-day windows, and the UI never presents a partial lifetime sum as a real total; GitHub stars remain available independently, while GitHub-only entries intentionally have no npm download count;
+- combinable multi-sort criteria for relevance, stars, downloads, freshness, and name with per-criterion direction; when several are active they contribute equally through percentile-normalized composite ranking, so every selected criterion can affect the order;
+- npm 30-day download enrichment plus lazy paired `30d | total` stats for visible npm rows; lifetime totals are summed from the package creation date (or npm's 2015-01-10 data floor) in bounded windows, and the UI never presents a partial lifetime sum as a real total;
 - package freshness distinguishes npm release time from GitHub repository push time, so GitHub metadata churn does not make every item look newly released;
 - best-effort package artwork discovery from the DSH top-level manifest `icon` field, returned to the Client as bounded data URLs with the same SVG/PNG/JPEG/WebP and 256 KiB policy as native DSH metadata;
 - popular/default Browse results when the query is empty;
@@ -39,11 +52,11 @@ Implemented in this milestone:
 - no runtime import of Harness Client implementation packages;
 - Harness-provided React and DSH theme tokens.
 
-Not migrated yet:
+Known limitations in `0.5.0`:
 
-- build-script approval UI inside Registry Aggregator (the native Add plugin dialog remains the approval fallback);
-- bulk Update all/cancel orchestration;
-- update discovery for GitHub-only installed dependencies that have no npm package identity.
+- build-script approval UI remains in the native **Add plugin** dialog;
+- bulk **Update all** / cancel orchestration is not part of the DSH 0.2 line yet;
+- update discovery for GitHub-only installed dependencies without npm package identity is not implemented yet.
 
 ## Architecture
 
@@ -52,7 +65,7 @@ DSH Plugins
   └─ Installed
       └─ Registry Aggregator
           └─ plugins.bundle.config
-              ├─ Sources  ← current milestone
+              ├─ Sources
               ├─ Browse
               └─ Updates
 
@@ -68,7 +81,7 @@ Sources UI
                  ├─ custom-json
                  └─ corporate
 
-Browse Install
+Browse Install / Updates
   └─ native DSH remote.pluginManager
        ├─ inspect(spec)
        ├─ installBundle(spec)
@@ -92,7 +105,7 @@ pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" plugin --profile $PROFILE add "github:S
 pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile $PROFILE
 ```
 
-Then open **Plugins → Installed → Registry Aggregator → Sources** and verify source state in the real Harness UI.
+Then open **Plugins → Installed → Registry Aggregator** and verify **Sources**, **Browse**, installation, compatibility filtering, download statistics, and **Updates** in the real Harness UI.
 
 ## Historical lines
 

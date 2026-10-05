@@ -1,0 +1,66 @@
+# Changelog
+
+All notable changes to Registry Aggregator are documented here.
+
+## [0.5.0] - 2026-10-05
+
+### Added
+
+- Clean DSH 0.2.x implementation line with native `plugins.bundle.config` integration and no carried 0.1.x compatibility layer.
+- `Sources | Browse | Updates` navigation integrated into the native Plugin Manager detail page.
+- Federated discovery across npm, GitHub, custom JSON, and corporate catalog sources.
+- Source management with enable/disable, add/remove, refresh, copy-address, health, count, and error state.
+- Fast Browse search with compact source/release/freshness/tag/compatibility/page-size filters and combinable relevance/stars/downloads/freshness/name sorting.
+- Native Plugin Manager install flow from Browse through `remote.pluginManager.inspect()` and `installBundle()`.
+- Installed bundle synchronization through `listBundles()` and `plugin-manager/changed`.
+- Per-package update discovery for npm-backed installed bundles and updates through the native Plugin Manager.
+- Runtime DSH compatibility evidence with `Compatible`, `Incompatible`, and `Not verified` states plus a compatibility filter.
+- Package versions, GitHub stars, release/repository freshness, package artwork, npm 30-day downloads, and lazy lifetime npm download totals.
+- Host-side RPC hardening with bounded responses, timeouts, redirect validation, DNS pinning, and private-network blocking.
+
+### Changed
+
+- Package compatibility is now `>=0.2.0-rc.2 <0.3.0`.
+- Compatibility checks use the DSH version from the active installation manifest rather than a hardcoded RC value.
+- Registry UI was rebuilt to follow DSH 0.2.x Plugin Manager layout, theme tokens, switch geometry, icon actions, hairlines, and compact filter behavior.
+- Install actions are icon-only and known-incompatible packages are disabled before they reach the native Plugin Manager.
+- Combined sorting uses equal-weight percentile-normalized ranking so every active criterion can influence the result.
+- npm lifetime download totals are resolved lazily for visible rows and are never exposed as partial totals.
+
+### Fixed
+
+- Corrected package freshness so GitHub repository metadata updates do not make npm releases appear to have been published today.
+- Corrected combined Browse sorting so secondary active criteria materially affect ranking.
+- Corrected npm download presentation so `30d` and `total` evidence remain paired and partial lifetime sums are not shown as final totals.
+- Corrected compact-filter layout, selected-value clipping, horizontal overflow, and page-size/freshness control widths.
+- Corrected source health/checking state handling and restored native-style source controls and icons.
+
+### Known limitations
+
+- Build-script approval remains in the native **Add plugin** dialog.
+- Bulk **Update all** / cancellation is not yet part of the DSH 0.2.x line.
+- GitHub-only installed packages without npm package identity are not yet included in automatic update discovery.
+
+## [0.4.17] - 2026-10-01
+
+### Added
+
+- Native plugin update actions for installed bundles and Registry **Updates** cards.
+- **Update all** workflow with sequential updates and cancellation of the active/remaining queue.
+- Cancel support for individual update operations through the DSH Plugin Manager request id.
+- Compact **Add a new source** layout with icon-only cancel/add actions on desktop.
+
+### Changed
+
+- Registry UI controls were aligned more closely with the DSH 0.1.7-rc.2 visual language, including native primitives, semantic theme tokens, DSH radius roles, and 0.5px neutral hairlines.
+- Browse cards and artifact links were aligned with native Plugin Manager presentation.
+- DSH runtime/client dependencies and CI smoke validation were moved to `0.1.7-rc.2`.
+- Package compatibility floor became `>=0.1.7-rc.2 <0.2.0`.
+
+## [0.4.16] - 2026-09-30
+
+- Integrated Registry Aggregator directly below native **Installed** on the DSH Plugins page.
+- Added expandable Installed registry metadata and advisory update badges.
+- Added exact installed-package metadata lookup, GitHub star enrichment, compatibility evidence, persisted Browse state, and bounded caches.
+
+Full release details are also kept under [`.github/release-notes/`](.github/release-notes/).

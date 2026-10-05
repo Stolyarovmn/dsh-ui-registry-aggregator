@@ -1,0 +1,83 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [dsh-0.2.0]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >
+      github.event_name != 'push' ||
+      startsWith(github.event.head_commit.message, 'release: v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Configure npm registry without token auth
+        run: npm config set registry https://registry.npmjs.org/
+
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@latest
+
+      - name: Verify release version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            test "${{ github.event.release.tag_name }}" = "v$VERSION"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            FIRST_LINE="$(git log -1 --pretty=%s)"
+            test "$FIRST_LINE" = "release: v$VERSION"
+          fi
+
+      - name: Install test dependencies
+        run: npm install --package-lock=false --legacy-peer-deps
+
+      - name: Test package
+        run: npm test
+
+      - name: Verify package contents
+        run: npm run test:pack
+
+      - name: Create GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          NOTES=".github/release-notes/v$VERSION.md"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "GitHub release v$VERSION already exists"
+          elif [ -f "$NOTES" ]; then
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file "$NOTES"
+          else
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+          fi
+
+      - name: Publish
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$VERSION" == *-* ]]; then
+            npm publish --access public --provenance --tag next
+          else
+            npm publish --access public --provenance
+          fi

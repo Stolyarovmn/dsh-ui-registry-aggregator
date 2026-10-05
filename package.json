@@ -1,6 +1,6 @@
 {
   "name": "@stolyarovmn/dsh-ui-registry-aggregator",
-  "version": "0.5.0-rc.14",
+  "version": "0.5.0",
   "description": "Federated plugin discovery and update UI for DeepSeek Harness 0.2.x, integrated with the native Plugin Manager.",
   "author": {
     "name": "Stolyarovmn",
