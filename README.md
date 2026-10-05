@@ -41,7 +41,7 @@ Implemented in this milestone:
 - combinable multi-sort criteria for relevance, stars, downloads, freshness, and name with per-criterion direction; when several are active they contribute equally through percentile-normalized composite ranking, so every selected criterion can affect the order;
 - npm 30-day download enrichment plus lazy paired `30d | total` stats for visible npm rows; lifetime totals are summed from the package creation date (or npm's 2015-01-10 data floor) in bounded windows, and the UI never presents a partial lifetime sum as a real total;
 - package freshness distinguishes npm release time from GitHub repository push time, so GitHub metadata churn does not make every item look newly released;
-- best-effort package artwork discovery prefers the official DSH top-level manifest `icon`; when it is absent and a GitHub repository is known, Browse may lazily use a safe repository-local README logo/icon image. Installed Updates reuse the native Plugin Manager `BundleInfo.meta.icon`. All fetched artwork remains limited to SVG/PNG/JPEG/WebP and 256 KiB;
+- best-effort package artwork discovery prefers the official DSH top-level manifest `icon`; when it is absent, Browse can recover the GitHub repository from npm manifest metadata and lazily use a safe repository-local README logo/icon image. Installed Updates reuse the native Plugin Manager `BundleInfo.meta.icon`. All fetched artwork remains limited to SVG/PNG/JPEG/WebP and 256 KiB;
 - popular/default Browse results when the query is empty;
 - real npm/GitHub source marks and a package icon exposed through the DSH 0.2 manifest contract;
 - horizontal layout containment for narrow Plugin Manager detail panes;
@@ -82,7 +82,7 @@ Sources UI
                  ├─ custom-json
                  └─ corporate
 
-Browse Install / Updates
+Browse Install
   └─ native DSH remote.pluginManager
        ├─ inspect(spec)
        ├─ installBundle(spec)
@@ -106,7 +106,7 @@ pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" plugin --profile $PROFILE add "github:S
 pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile $PROFILE
 ```
 
-Then open **Plugins → Installed → Registry Aggregator** and verify **Sources**, **Browse**, installation, compatibility filtering, download statistics, and **Updates** in the real Harness UI.
+Then open **Plugins → Installed → Registry Aggregator → Sources** and verify source state in the real Harness UI.
 
 ## Historical lines
 
