@@ -1,0 +1,57 @@
+name: Apply v0.5.1-rc.1 patch
+
+on:
+  push:
+    branches:
+      - dsh-0.2.0
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore: apply v0.5.1-rc.1 patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Apply patch
+        run: node scripts/apply-v051-rc1.mjs
+
+      - name: Install test dependencies
+        run: npm install --package-lock=false --legacy-peer-deps
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check index.js
+          node --check client.js
+          node --check source-core.js
+          node --check test/source-core.test.js
+          node --check test/skeleton.test.js
+
+      - name: Test
+        run: npm test
+
+      - name: Verify package contents
+        run: npm run test:pack
+
+      - name: Check patch whitespace
+        run: git diff --check
+
+      - name: Commit verified patch
+        shell: bash
+        run: |
+          rm scripts/apply-v051-rc1.mjs .github/workflows/patch-v051-rc1.yml
+          rmdir scripts 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "Patch produced no changes"; exit 1; }
+          git commit -m "fix: improve artwork and distinguish update actions"
+          git push origin HEAD:dsh-0.2.0
