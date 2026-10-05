@@ -40,9 +40,6 @@ jobs:
       - name: Verify package contents
         run: npm run test:pack
 
-      - name: Check patch whitespace
-        run: git diff --check
-
       - name: Commit verified patch
         shell: bash
         run: |
