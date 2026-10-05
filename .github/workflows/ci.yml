@@ -3,11 +3,14 @@ name: CI
 on:
   push:
     branches:
-      - dsh-0.2.0
+      - dsh-0.2.1-alpha.1
   pull_request:
 
 permissions:
   contents: read
+
+env:
+  DSH_VERSION: 0.2.1-alpha.1
 
 jobs:
   test:
@@ -37,11 +40,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install local plugin into isolated DSH 0.2 profile
+      - name: Install local plugin into isolated DSH 0.2.1-alpha.1 profile
         env:
           DSH_HOME: ${{ runner.temp }}/dsh-home
         run: |
-          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 plugin --profile smoke add "file:$GITHUB_WORKSPACE"
-          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 --profile smoke --dump-config > /tmp/dsh-config.txt
+          pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" plugin --profile smoke add "file:$GITHUB_WORKSPACE"
+          pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile smoke --dump-config > /tmp/dsh-config.txt
           grep -F "registry-aggregator" /tmp/dsh-config.txt
           grep -F "@stolyarovmn/dsh-ui-registry-aggregator" /tmp/dsh-config.txt
