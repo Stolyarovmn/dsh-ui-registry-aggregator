@@ -161,7 +161,7 @@ test('Browse compatibility filter can isolate compatible, incompatible, and unve
 
 test('known-incompatible Browse and Updates actions are disabled before native Plugin Manager rejects them', () => {
   assert.match(client, /disabled: installed \|\| busy \|\| compatibilityStatus === 'incompatible'/)
-  assert.match(client, /disabled: busy \|\| done \|\| incompatible/)
+  assert.match(client, /disabled: (?:bulkUpdating \|\| )?busy \|\| done \|\| incompatible/)
 })
 
 
@@ -183,4 +183,17 @@ test('Browse resolves paired npm 30-day and total download stats lazily for visi
 test('freshness and page-size filters reserve enough width for their selected values', () => {
   assert.match(client, /data-kind=freshness\] select\{width:72px\}/)
   assert.match(client, /data-kind=page\] select\{width:58px\}/)
+})
+
+
+test('Updates expose a live tab indicator and sequential Update all action', () => {
+  assert.match(client, /function useUpdateDiscovery/)
+  assert.match(client, /className: 'ra-update-badge'/)
+  assert.match(client, /updateCount > 0/)
+  assert.match(client, /state\.items\.length > 1/)
+  assert.match(client, /const runUpdateAll = async/)
+  assert.match(client, /for \(const item of queue\) await runUpdate\(item, false\)/)
+  assert.match(client, /Number\(left\.bundle\.name === PACKAGE\)/)
+  assert.match(client, /bulkUpdating/)
+  assert.match(client, /updateAll/)
 })

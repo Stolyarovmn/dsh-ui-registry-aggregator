@@ -86,6 +86,9 @@ window.__ModuleLoader__.load({
       updateNone: 'Installed plugins are up to date',
       updateNoneBody: 'No newer package versions were found in the connected registries.',
       updateRefresh: 'Check for updates',
+      updatesAvailable: 'Updates: {count} available',
+      updateAll: 'Update all',
+      updatingAll: 'Updating all…',
       downloads30d: 'npm downloads in the last 30 days',
       downloadsTotal: 'npm total downloads',
       filterSource: 'Source',
@@ -198,6 +201,9 @@ window.__ModuleLoader__.load({
       updateNone: '已安装插件均为最新版本',
       updateNoneBody: '在已连接的注册表中没有发现更高版本。',
       updateRefresh: '检查更新',
+      updatesAvailable: '更新：{count} 个可用',
+      updateAll: '全部更新',
+      updatingAll: '正在全部更新…',
       downloads30d: 'npm 最近 30 天下载量',
       downloadsTotal: 'npm 总下载量',
       filterSource: '来源',
@@ -241,6 +247,8 @@ window.__ModuleLoader__.load({
       '.ra-root{box-sizing:border-box;min-width:0;max-width:100%;overflow-x:hidden;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;padding:2px 0 8px}',
       '.ra-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:min(100%,440px);padding:4px;margin:12px 0 24px;border-radius:12px;background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-2))}',
       '.ra-tab{height:34px;padding:0 14px;border:.5px solid transparent;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer}',
+      '.ra-tab-label{display:inline-flex;align-items:center;justify-content:center;gap:6px}',
+      '.ra-update-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-primary-foreground);font-size:10px;line-height:16px;font-weight:700}',
       '.ra-tab:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
       '.ra-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}',
       '.ra-tab[aria-selected=true]{border-color:var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font-weight:600}',
@@ -254,6 +262,7 @@ window.__ModuleLoader__.load({
       '.ra-button:focus-visible,.ra-input:focus-visible,.ra-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}',
       '.ra-button:disabled{opacity:.5;cursor:not-allowed}',
       '.ra-button-primary{background:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-primary-foreground)}',
+      '.ra-update-all{display:inline-flex;align-items:center;justify-content:center;gap:6px}',
       '.ra-panel{border:.5px solid var(--dsw-alias-border-l4);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}',
       '.ra-add-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px}',
       '.ra-add-form{display:grid;grid-template-columns:minmax(160px,1fr) minmax(130px,180px) minmax(220px,1.2fr) auto;gap:10px;padding:12px 13px;border-top:.5px solid var(--dsw-alias-border-l4);align-items:end}',
@@ -1678,12 +1687,12 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function UpdatesView({ t }) {
+    function useUpdateDiscovery(enabled = true) {
       const [revision, setRevision] = React.useState(0)
-      const [state, setState] = React.useState({ loading: true, items: [], error: '' })
-      const [operations, setOperations] = React.useState({})
+      const [state, setState] = React.useState({ loading: enabled, items: [], error: '' })
 
       React.useEffect(() => {
+        if (!enabled) return undefined
         let active = true
         const controller = new AbortController()
         const load = async () => {
@@ -1725,23 +1734,51 @@ window.__ModuleLoader__.load({
           controller.abort()
           if (typeof dispose === 'function') dispose()
         }
-      }, [revision])
+      }, [enabled, revision])
 
-      const runUpdate = async item => {
+      const refresh = React.useCallback(() => setRevision(value => value + 1), [])
+      return { state, refresh }
+    }
+
+    function UpdatesView({ t, discovery }) {
+      const { state, refresh } = discovery
+      const [operations, setOperations] = React.useState({})
+      const [bulkUpdating, setBulkUpdating] = React.useState(false)
+
+      const runUpdate = async (item, refreshAfter = true) => {
         const key = item.bundle.name
         const current = operations[key]
-        if (['starting', 'installing', 'applying'].includes(current?.phase)) return
+        if (['starting', 'installing', 'applying'].includes(current?.phase)) return false
         setOperations(value => ({ ...value, [key]: { phase: 'starting', error: '' } }))
         try {
           await updateInstalledPlugin(item.bundle, item.availableVersion, progress => {
             setOperations(value => ({ ...value, [key]: { ...(value[key] ?? {}), ...progress, error: '' } }))
           })
           setOperations(value => ({ ...value, [key]: { phase: 'done', error: '' } }))
-          setRevision(value => value + 1)
+          if (refreshAfter) refresh()
+          return true
         } catch (error) {
           setOperations(value => ({ ...value, [key]: { phase: 'failed', error: String(error?.message ?? error) } }))
+          return false
         }
       }
+
+      const runUpdateAll = async () => {
+        if (bulkUpdating || state.loading) return
+        const queue = state.items
+          .filter(item => item.metadata?.compatibility !== 'unsupported')
+          .sort((left, right) => Number(left.bundle.name === PACKAGE) - Number(right.bundle.name === PACKAGE))
+        if (!queue.length) return
+        setBulkUpdating(true)
+        try {
+          for (const item of queue) await runUpdate(item, false)
+        } finally {
+          setBulkUpdating(false)
+          refresh()
+        }
+      }
+
+      const updatableCount = state.items.filter(item => item.metadata?.compatibility !== 'unsupported').length
 
       return h('section', { className: 'ra-section', 'aria-labelledby': 'ra-updates-title' },
         h('div', { className: 'ra-section-head' },
@@ -1749,12 +1786,24 @@ window.__ModuleLoader__.load({
             h('h3', { id: 'ra-updates-title', className: 'ra-heading' }, t('updatesTitle')),
             h('p', { className: 'ra-lead' }, t('updatesLead')),
           ),
-          h(IconButton, {
-            label: t('updateRefresh'),
-            disabled: state.loading,
-            onClick: () => setRevision(value => value + 1),
-            icon: h(IconRefresh, { size: 16, className: state.loading ? 'ra-spin' : undefined }),
-          }),
+          h('div', { className: 'ra-actions' },
+            state.items.length > 1 ? h('button', {
+              type: 'button',
+              className: 'ra-button ra-update-all',
+              title: bulkUpdating ? t('updatingAll') : t('updateAll'),
+              disabled: state.loading || bulkUpdating || updatableCount === 0,
+              onClick: () => { void runUpdateAll() },
+            },
+              h(IconUpdate, { size: 14 }),
+              h('span', null, bulkUpdating ? t('updatingAll') : t('updateAll')),
+            ) : null,
+            h(IconButton, {
+              label: t('updateRefresh'),
+              disabled: state.loading || bulkUpdating,
+              onClick: refresh,
+              icon: h(IconRefresh, { size: 16, className: state.loading ? 'ra-spin' : undefined }),
+            }),
+          ),
         ),
         state.loading
           ? h('div', { className: 'ra-plugin-meta', role: 'status' }, t('updateChecking'))
@@ -1799,7 +1848,7 @@ window.__ModuleLoader__.load({
                     h(IconButton, {
                       label,
                       state: done ? 'done' : failed ? 'error' : undefined,
-                      disabled: busy || done || incompatible,
+                      disabled: bulkUpdating || busy || done || incompatible,
                       onClick: () => { void runUpdate(item) },
                       icon: done
                         ? h(IconCheck, { size: 16 })
@@ -1815,6 +1864,7 @@ window.__ModuleLoader__.load({
 
     function RegistryAggregator({ t, view }) {
       const [tab, setTab] = React.useState('sources')
+      const updateDiscovery = useUpdateDiscovery(view === 'page')
       const formState = React.useSyncExternalStore(
         listener => sourceConfigForm.subscribe(listener),
         () => sourceConfigForm.getSnapshot(),
@@ -1825,10 +1875,15 @@ window.__ModuleLoader__.load({
         mutate: (operations, expectedRevision) => sourceConfigForm.mutate(operations, expectedRevision),
       }), [formState])
       if (view !== 'page') return null
+      const updateCount = updateDiscovery.state.items.length
+      const updateLabel = h('span', { className: 'ra-tab-label' },
+        t('updates'),
+        updateCount > 0 ? h('span', { className: 'ra-update-badge', 'aria-hidden': true }, updateCount > 99 ? '99+' : String(updateCount)) : null,
+      )
       const tabs = [
-        ['sources', t('sources')],
-        ['browse', t('browse')],
-        ['updates', t('updates')],
+        ['sources', t('sources'), t('sources')],
+        ['browse', t('browse'), t('browse')],
+        ['updates', updateLabel, updateCount > 0 ? format(t, 'updatesAvailable', { count: updateCount }) : t('updates')],
       ]
       const selectRelative = delta => {
         const index = tabs.findIndex(item => item[0] === tab)
@@ -1838,18 +1893,19 @@ window.__ModuleLoader__.load({
       const body = tab === 'browse'
         ? h(BrowseView, { t })
         : tab === 'updates'
-          ? h(UpdatesView, { t })
+          ? h(UpdatesView, { t, discovery: updateDiscovery })
           : h(SourcesView, { t, form })
 
       return h('div', { className: 'ra-root' },
         h('style', null, css),
         h('div', { className: 'ra-tabs', role: 'tablist', 'aria-label': 'Registry Aggregator' },
-          ...tabs.map(([id, label]) => h('button', {
+          ...tabs.map(([id, label, ariaLabel]) => h('button', {
             key: id,
             type: 'button',
             role: 'tab',
             className: 'ra-tab',
             'aria-selected': tab === id,
+            'aria-label': ariaLabel,
             tabIndex: tab === id ? 0 : -1,
             onClick: () => setTab(id),
             onKeyDown: event => {

@@ -3,6 +3,7 @@
 This branch is the clean DSH `0.2.0` implementation line. It does **not** carry compatibility code or UI workarounds from DSH `0.1.x`.
 
 Current stable version: `0.5.1`  
+Current test version: `0.5.2-rc.1`  
 Current validation baseline: DSH `v0.2.0-rc.2`. Compatibility checks use the actual running DSH version from the active installation manifest rather than a hardcoded RC.
 
 ## Install from npm
@@ -49,13 +50,14 @@ Implemented in this milestone:
 - explicit `v<version>` package versions plus lazy manifest evidence for GitHub/npm rows;
 - compatibility evidence against the actual running DSH version, following DSH peer semantics for `@deepseek-ai/dsh` and `@deepseek-ai/dsh-*`; Browse shows `Compatible`, `Incompatible`, or neutral `Not verified` as plain colored text, and can filter by compatibility;
 - live Updates discovery from native installed bundles plus latest npm manifests, with per-package update through `remote.pluginManager.installBundle`; package update actions use a distinct two-arrow Update glyph while content/list refresh keeps the single-arrow Refresh glyph;
+- live numeric update indicator on the **Updates** tab, plus sequential **Update all** when more than one update is available; explicitly incompatible entries stay disabled, and Registry Aggregator updates itself last so it cannot interrupt the rest of the queue;
 - no runtime import of Harness Client implementation packages;
 - Harness-provided React and DSH theme tokens.
 
-Known limitations in `0.5.1`:
+Known limitations in `0.5.2-rc.1`:
 
 - build-script approval UI remains in the native **Add plugin** dialog;
-- bulk **Update all** / cancel orchestration is not part of the DSH 0.2 line yet;
+- bulk update cancellation is not implemented yet; **Update all** runs eligible updates sequentially once started;
 - update discovery for GitHub-only installed dependencies without npm package identity is not implemented yet.
 
 ## Architecture
