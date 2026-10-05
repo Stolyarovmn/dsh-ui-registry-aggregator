@@ -18,6 +18,11 @@ jobs:
         with:
           ref: feat/plugins-main-section
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install test dependencies
+        run: npm install --package-lock=false --legacy-peer-deps
       - name: Transform RC
         run: python .github/scripts/build-main-surface-rc.py
       - name: Validate plugin
