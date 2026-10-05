@@ -1,0 +1,32 @@
+name: Cleanup v0.5.1 patch artifacts
+
+on:
+  push:
+    branches:
+      - dsh-0.2.0
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Remove generated and temporary files
+        shell: bash
+        run: |
+          git rm -r node_modules
+          git rm CLEANUP-NOTE.tmp cleanup-trigger.md NOOP.tmp DELETE-ME.tmp LAST-TEMP.tmp REALLY-LAST-TEMP.tmp I-WILL-NOT-DO-THIS-AGAIN.tmp
+          git rm .github/workflows/cleanup-v051.yml
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: remove generated patch artifacts"
+          git push origin HEAD:dsh-0.2.0
