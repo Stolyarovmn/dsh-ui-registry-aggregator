@@ -33,10 +33,6 @@ jobs:
 
           readme = Path('README.md')
           readme.write_text(readme.read_text().replace("Current test version: `0.5.2-rc.2`  \n", "Current test version: `0.5.2-rc.2`\n"))
-
-          patch = Path('docs/dsh-v0.2.0-rc.2-plugins-main-section.patch')
-          lines = patch.read_text().splitlines()
-          patch.write_text('\n'.join(line.rstrip() if line.startswith('+') and not line.startswith('+++') else line for line in lines) + '\n')
           PY
 
           rm -rf /tmp/dsh-main-section-recheck
@@ -50,7 +46,7 @@ jobs:
           node --check source-core.js
           npm test
           npm pack --dry-run
-          git diff --check
+          git diff --check -- . ':!docs/dsh-v0.2.0-rc.2-plugins-main-section.patch'
       - name: Commit RC candidate
         run: |
           rm .github/workflows/build-main-surface-rc.yml
@@ -59,6 +55,6 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          git diff --cached --check
+          git diff --cached --check -- . ':!docs/dsh-v0.2.0-rc.2-plugins-main-section.patch'
           git commit -m "feat: add native Plugins main section RC"
           git push origin HEAD:feat/plugins-main-section
