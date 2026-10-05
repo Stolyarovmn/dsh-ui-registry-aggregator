@@ -615,6 +615,15 @@ window.__ModuleLoader__.load({
       ] })
     }
 
+    function IconUpdate({ size = 16 }) {
+      return h(SvgIcon, { size, children: [
+        h('path', { d: 'M13.5 5.5C12.6 3.2 10.5 1.75 8 1.75C5.9 1.75 4.05 2.75 2.9 4.3L1.75 5.75', stroke: 'currentColor' }),
+        h('path', { d: 'M1.75 2.75V5.75H4.75', stroke: 'currentColor' }),
+        h('path', { d: 'M2.5 10.5C3.4 12.8 5.5 14.25 8 14.25C10.1 14.25 11.95 13.25 13.1 11.7L14.25 10.25', stroke: 'currentColor' }),
+        h('path', { d: 'M14.25 13.25V10.25H11.25', stroke: 'currentColor' }),
+      ] })
+    }
+
     function IconPlus({ size = 16 }) {
       return h(SvgIcon, { size, children: [
         h('path', { d: 'M8 2V14', stroke: 'currentColor' }),
@@ -1775,7 +1784,7 @@ window.__ModuleLoader__.load({
                     ? t('updateRetry')
                     : format(t, 'updateAction', { version: item.availableVersion })
                   return h('li', { key, className: 'ra-update-row' },
-                    h('span', { className: 'ra-plugin-icon', 'aria-hidden': true }, h(IconPlugin, { size: 16 })),
+                    h('span', { className: 'ra-plugin-icon', 'aria-hidden': true }, h(PluginArtwork, { src: item.bundle?.meta?.icon })),
                     h('div', { className: 'ra-update-main' },
                       h('div', { className: 'ra-update-title' },
                         h('span', null, key),
@@ -1796,7 +1805,7 @@ window.__ModuleLoader__.load({
                         ? h(IconCheck, { size: 16 })
                         : busy
                           ? h(IconRefresh, { size: 16, className: 'ra-spin' })
-                          : h(IconRefresh, { size: 16 }),
+                          : h(IconUpdate, { size: 16 }),
                     }),
                   )
                 }),

@@ -204,6 +204,39 @@ test('plugin icons follow the DSH manifest-relative icon contract and return dat
   assert.match(rows[0].icon, /^data:image\/svg\+xml;base64,/)
 })
 
+test('plugin icons use a safe repository-local README logo when the manifest has no icon', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 1h14v14H1z"/></svg>'
+  const fetchImpl = async input => {
+    const url = new URL(input)
+    if (url.hostname === 'registry.npmjs.org') {
+      return Response.json({ name: '@acme/dsh-readme-icon', version: '1.2.5' })
+    }
+    if (url.hostname === 'raw.githubusercontent.com' && url.pathname.endsWith('/package.json')) {
+      return Response.json({ name: '@acme/dsh-readme-icon', version: '1.2.5' })
+    }
+    if (url.hostname === 'raw.githubusercontent.com' && /\/(README|readme)\.md$/u.test(url.pathname)) {
+      return new Response('<p align="center"><img src="assets/logo.svg" alt="Acme logo"></p>')
+    }
+    if (url.hostname === 'raw.githubusercontent.com' && url.pathname.endsWith('/assets/logo.svg')) {
+      return new Response(svg, { status: 200, headers: { 'content-type': 'image/svg+xml' } })
+    }
+    throw new Error('unexpected URL ' + url)
+  }
+
+  const rows = await resolvePluginIcons([
+    {
+      key: 'readme-icon',
+      packageName: '@acme/dsh-readme-icon',
+      version: '1.2.5',
+      repository: 'https://github.com/acme/dsh-readme-icon',
+    },
+  ], { fetchImpl, resolveHost: publicResolver })
+
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].key, 'readme-icon')
+  assert.match(rows[0].icon, /^data:image\/svg\+xml;base64,/)
+})
+
 test('plugin icon resolution rejects URL icon declarations', async () => {
   const fetchImpl = async input => {
     const url = new URL(input)
@@ -228,6 +261,7 @@ test('plugin metadata verifies DSH peer compatibility against the target runtime
       return Response.json({
         name: '@acme/dsh-plugin',
         version: '2.3.4',
+        repository: { url: 'git+https://github.com/acme/dsh-plugin.git' },
         peerDependencies: {
           '@deepseek-ai/dsh': '>=0.2.0-rc.1 <0.3.0',
           '@deepseek-ai/dsh-client-ui-slots': '^0.2.0-rc.2',
@@ -242,6 +276,7 @@ test('plugin metadata verifies DSH peer compatibility against the target runtime
   ], { fetchImpl, resolveHost: publicResolver, runtimeVersion: '0.2.0-rc.2' })
 
   assert.equal(rows[0].version, '2.3.4')
+  assert.equal(rows[0].repository, 'https://github.com/acme/dsh-plugin')
   assert.equal(rows[0].compatibility, 'compatible')
   assert.equal(rows[0].runtimeVersion, '0.2.0-rc.2')
   assert.equal(rows[0].dshPeers.length, 2)

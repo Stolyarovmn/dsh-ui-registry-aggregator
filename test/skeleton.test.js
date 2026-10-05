@@ -143,6 +143,9 @@ test('Updates tab checks installed bundles and updates through native Plugin Man
   assert.match(client, /compareSemver\(availableVersion, bundle\.version\)/)
   assert.match(client, /updateInstalledPlugin/)
   assert.match(client, /installBundle\(name \+ '@' \+ version/)
+  assert.match(client, /function IconUpdate/)
+  assert.match(client, /item\.bundle\?\.meta\?\.icon/)
+  assert.match(client, /h\(IconUpdate, \{ size: 16 \}\)/)
 })
 
 

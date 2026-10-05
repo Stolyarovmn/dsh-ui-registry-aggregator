@@ -3,6 +3,7 @@
 This branch is the clean DSH `0.2.0` implementation line. It does **not** carry compatibility code or UI workarounds from DSH `0.1.x`.
 
 Current stable version: `0.5.0`  
+Current test version: `0.5.1-rc.1`  
 Current validation baseline: DSH `v0.2.0-rc.2`. Compatibility checks use the actual running DSH version from the active installation manifest rather than a hardcoded RC.
 
 ## Install from npm
@@ -40,7 +41,7 @@ Implemented in this milestone:
 - combinable multi-sort criteria for relevance, stars, downloads, freshness, and name with per-criterion direction; when several are active they contribute equally through percentile-normalized composite ranking, so every selected criterion can affect the order;
 - npm 30-day download enrichment plus lazy paired `30d | total` stats for visible npm rows; lifetime totals are summed from the package creation date (or npm's 2015-01-10 data floor) in bounded windows, and the UI never presents a partial lifetime sum as a real total;
 - package freshness distinguishes npm release time from GitHub repository push time, so GitHub metadata churn does not make every item look newly released;
-- best-effort package artwork discovery from the DSH top-level manifest `icon` field, returned to the Client as bounded data URLs with the same SVG/PNG/JPEG/WebP and 256 KiB policy as native DSH metadata;
+- best-effort package artwork discovery prefers the official DSH top-level manifest `icon`; when it is absent and a GitHub repository is known, Browse may lazily use a safe repository-local README logo/icon image. Installed Updates reuse the native Plugin Manager `BundleInfo.meta.icon`. All fetched artwork remains limited to SVG/PNG/JPEG/WebP and 256 KiB;
 - popular/default Browse results when the query is empty;
 - real npm/GitHub source marks and a package icon exposed through the DSH 0.2 manifest contract;
 - horizontal layout containment for narrow Plugin Manager detail panes;

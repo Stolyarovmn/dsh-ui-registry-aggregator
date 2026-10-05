@@ -505,6 +505,13 @@ function cleanUrl(value) {
   }
 }
 
+function manifestRepositoryUrl(manifest) {
+  const repository = manifest?.repository
+  if (typeof repository === 'string') return cleanUrl(repository)
+  if (repository && typeof repository === 'object' && !Array.isArray(repository)) return cleanUrl(repository.url)
+  return undefined
+}
+
 function npmPlugin(entry, source) {
   const pkg = entry?.package
   const name = text(pkg?.name)
@@ -722,6 +729,41 @@ function safeIconPath(value) {
   return { path: clean, mediaType }
 }
 
+function readmeIconPath(markdown) {
+  const source = String(markdown ?? '')
+  const candidates = []
+  const add = (raw, label = '') => {
+    const candidate = text(raw)?.replace(/^<|>$/g, '').split(/[?#]/u)[0]
+    const icon = safeIconPath(candidate)
+    if (!icon) return
+    const signal = (String(label) + ' ' + icon.path).toLowerCase()
+    if (!/(^|[\/_.\s-])(icon|logo|avatar|brand|mark)([\/_.\s-]|$)/u.test(signal)) return
+    const lowerPath = icon.path.toLowerCase()
+    const basename = lowerPath.split('/').pop() ?? ''
+    const score = /^(icon|logo)([._-]|$)/u.test(basename)
+      ? 3
+      : /(^|\/)(assets?|images?|img|media)\//u.test(lowerPath)
+        ? 2
+        : 1
+    candidates.push({ ...icon, score })
+  }
+
+  const htmlImage = /<img\b([^>]*?)>/giu
+  let match
+  while ((match = htmlImage.exec(source))) {
+    const attrs = match[1]
+    const src = /\bsrc\s*=\s*["']([^"']+)["']/iu.exec(attrs)?.[1]
+    const alt = /\balt\s*=\s*["']([^"']*)["']/iu.exec(attrs)?.[1] ?? ''
+    add(src, alt)
+  }
+
+  const markdownImage = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/gu
+  while ((match = markdownImage.exec(source))) add(match[2], match[1])
+
+  candidates.sort((left, right) => right.score - left.score)
+  return candidates[0]
+}
+
 function encodedPath(path) {
   return path.split('/').map(part => encodeURIComponent(part)).join('/')
 }
@@ -900,8 +942,10 @@ export async function resolvePluginMetadata(items, options = {}) {
     }
 
     const compatibility = dshCompatibility(manifest, options.runtimeVersion)
+    const repository = manifestRepositoryUrl(manifest) ?? cleanUrl(item?.repository)
     const value = {
       ...(text(manifest?.version) ? { version: text(manifest.version) } : {}),
+      ...(repository ? { repository } : {}),
       compatibility: compatibility.status,
       ...(compatibility.peers.length ? { dshPeers: compatibility.peers } : {}),
       runtimeVersion: text(options.runtimeVersion),
@@ -925,14 +969,38 @@ async function resolveNpmIcon(item, options) {
   return iconDataFromUrl(iconUrl, icon.mediaType, options)
 }
 
+async function githubReadmeIcon(parts, options) {
+  const source = { id: 'plugin-readme-icon', name: 'plugin README icon', type: 'github', enabled: true }
+  for (const filename of ['README.md', 'readme.md']) {
+    try {
+      const readmeUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + filename
+      const bytes = await fetchBinary(readmeUrl, source, {
+        ...options,
+        authToken: undefined,
+        allowPrivateNetwork: false,
+        maxBytes: Math.min(options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES, 512 * 1024),
+      })
+      const icon = readmeIconPath(new TextDecoder().decode(bytes))
+      if (!icon) continue
+      const iconUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + encodedPath(icon.path)
+      return await iconDataFromUrl(iconUrl, icon.mediaType, options)
+    } catch {
+      // README artwork is optional evidence; try the next conventional filename.
+    }
+  }
+  return undefined
+}
+
 async function resolveGithubIcon(item, options) {
   const parts = githubRepositoryParts(item?.repository)
   if (!parts) return undefined
   const manifest = await githubManifest(item, options)
   const icon = safeIconPath(manifest?.icon)
-  if (!icon) return undefined
-  const iconUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + encodedPath(icon.path)
-  return iconDataFromUrl(iconUrl, icon.mediaType, options)
+  if (icon) {
+    const iconUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + encodedPath(icon.path)
+    return iconDataFromUrl(iconUrl, icon.mediaType, options)
+  }
+  return githubReadmeIcon(parts, options)
 }
 
 export async function resolvePluginIcons(items, options = {}) {
