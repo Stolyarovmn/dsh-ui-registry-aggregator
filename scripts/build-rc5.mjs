@@ -108,17 +108,17 @@ pkg.version = '0.5.2-rc.5'
 const testBlock = `
 
 test('temporary rc.2 bridge waits for native inventory and polls without MutationObserver feedback', () => {
-  assert.match(client, /function installPluginsPagePollingBridge/)
-  assert.match(client, /data-plugin-loading/)
-  assert.match(client, /window\.setInterval\(reconcile, 750\)/)
-  assert.match(client, /window\.setTimeout\(reconcile, 900\)/)
-  assert.match(client, /require\('react-dom\\/client'\)/)
-  assert.match(client, /section\[data-plugin-panel\]/)
-  assert.match(client, /section\[data-plugin-group="bundles"\]/)
-  assert.match(client, /insertAdjacentElement\('afterend', host\)/)
-  assert.match(client, /data-registry-aggregator-main-surface/)
-  assert.match(client, /root\.unmount\(\)/)
-  assert.doesNotMatch(client, /MutationObserver/)
+  assert.ok(client.includes('function installPluginsPagePollingBridge'))
+  assert.ok(client.includes('data-plugin-loading'))
+  assert.ok(client.includes('window.setInterval(reconcile, 750)'))
+  assert.ok(client.includes('window.setTimeout(reconcile, 900)'))
+  assert.ok(client.includes("require('react-dom/client')"))
+  assert.ok(client.includes('section[data-plugin-panel]'))
+  assert.ok(client.includes('section[data-plugin-group="bundles"]'))
+  assert.ok(client.includes("insertAdjacentElement('afterend', host)"))
+  assert.ok(client.includes('data-registry-aggregator-main-surface'))
+  assert.ok(client.includes('root.unmount()'))
+  assert.equal(client.includes('MutationObserver'), false)
 })
 `
 if (!test.includes("temporary rc.2 bridge waits for native inventory")) test += testBlock
