@@ -190,10 +190,41 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
   assert.match(client, /function useUpdateDiscovery/)
   assert.match(client, /className: 'ra-update-badge'/)
   assert.match(client, /updateCount > 0/)
-  assert.match(client, /state\.items\.length > 1/)
+  assert.match(client, /state\.items\.length > 0/)
   assert.match(client, /const runUpdateAll = async/)
   assert.match(client, /for \(const item of queue\) await runUpdate\(item, false\)/)
   assert.match(client, /Number\(left\.bundle\.name === PACKAGE\)/)
   assert.match(client, /bulkUpdating/)
   assert.match(client, /updateAll/)
+})
+
+
+test('temporary rc.2 bridge self-embeds after the native Installed group and cleans up', () => {
+  assert.match(client, /require\('react-dom\/client'\)/)
+  assert.match(client, /function installPluginsPageDomBridge/)
+  assert.match(client, /MutationObserver/)
+  assert.match(client, /section\[data-plugin-panel\]/)
+  assert.match(client, /section\[data-plugin-group="bundles"\]/)
+  assert.match(client, /insertAdjacentElement\('afterend', host\)/)
+  assert.match(client, /data-registry-aggregator-main-surface/)
+  assert.match(client, /root\.unmount\(\)/)
+  assert.match(client, /observer\.disconnect\(\)/)
+  assert.match(client, /DSH 0\.2\.0-rc\.2 Plugins page DOM bridge/)
+})
+
+
+test('main-page navigation follows native Plugin Manager heading language', () => {
+  assert.match(client, /ra-tabs\{display:flex;align-items:center/)
+  assert.doesNotMatch(client, /ra-tabs\{display:grid;grid-template-columns/)
+  assert.match(client, /ra-update-badge\{display:inline;color:var\(--dsw-alias-label-caption\)/)
+})
+
+test('temporary rc.2 bridge adds per-package update actions beside Installed switches', () => {
+  assert.match(client, /data-registry-aggregator-installed-update/)
+  assert.match(client, /\[data-plugin-package\]/)
+  assert.match(client, /card\.querySelector\('\[role="switch"\]'\)/)
+  assert.match(client, /actions\.insertBefore\(button, switchControl\)/)
+  assert.match(client, /format\(t, 'updateAction', \{ version: 'v' \+ item\.availableVersion \}\)/)
+  assert.match(client, /updateInstalledPlugin\(item\.bundle, item\.availableVersion/)
+  assert.match(client, /remote\.\$on\('plugin-manager\/changed'/)
 })
