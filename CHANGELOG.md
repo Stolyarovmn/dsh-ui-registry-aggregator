@@ -2,6 +2,40 @@
 
 All notable changes to Registry Aggregator are documented here.
 
+## [0.5.2] - 2026-10-06
+
+### Added
+
+- Added `Installed | Sources | Browse | Updates` navigation directly to the main DSH Plugins page while preserving the native Installed package cards.
+- Added `Update → vX.Y.Z` actions directly to native Installed package cards when a newer eligible version is discovered.
+- Added a main-page **Update all** action for eligible installed updates, with Registry Aggregator updated last.
+- Added a live update count beside **Updates** on the main Plugins page.
+
+### Changed
+
+- Sources, Browse, and Updates can now be used without first opening the Registry Aggregator detail page.
+- Main-page navigation follows the native Installed heading/count typography rather than the previous standalone segmented-control treatment.
+- The supported `plugins.bundle.config` view remains available as the fallback/detail UI.
+- Update discovery is shared by the main Installed actions and the Updates view.
+
+### Fixed
+
+- Prevented the DSH `0.2.0-rc.2` main-page compatibility bridge from mounting while the native Plugin Manager inventory skeleton is still active, avoiding the observed `pluginManager/listBundles` loading hang.
+- Removed the MutationObserver-based bridge behavior and replaced it with slow reconciliation after native inventory is ready.
+- Fixed duplicate Registry Aggregator UI above plugin detail pages by removing the main-page compatibility surface when the native Installed group disappears.
+- Restored native Installed DOM state when the compatibility surface is disposed.
+
+### Compatibility
+
+- DSH peer range remains `>=0.2.0-rc.2 <0.3.0`.
+- The main Plugins-list integration is intentionally version-pinned to DSH `0.2.0-rc.2` because stock rc.2 exposes no supported list-level Plugin Manager slot. The native `plugins.bundle.config` integration remains the supported fallback.
+
+### Validation
+
+- Promoted the manually verified `0.5.2-rc.6` line.
+- JavaScript syntax checks, repository tests, npm package dry-run validation, and the isolated DSH `0.2.0-rc.2` install smoke test passed.
+- Real Harness UI verification covered the main Plugins-page Browse integration, native-style navigation, compatibility evidence, and package search results.
+
 ## [0.5.1] - 2026-10-05
 
 ### Changed
