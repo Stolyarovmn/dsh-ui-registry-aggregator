@@ -197,3 +197,17 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
   assert.match(client, /bulkUpdating/)
   assert.match(client, /updateAll/)
 })
+
+
+test('temporary rc.2 bridge self-embeds after the native Installed group and cleans up', () => {
+  assert.match(client, /require\('react-dom\/client'\)/)
+  assert.match(client, /function installPluginsPageDomBridge/)
+  assert.match(client, /MutationObserver/)
+  assert.match(client, /section\[data-plugin-panel\]/)
+  assert.match(client, /section\[data-plugin-group="bundles"\]/)
+  assert.match(client, /insertAdjacentElement\('afterend', host\)/)
+  assert.match(client, /data-registry-aggregator-main-surface/)
+  assert.match(client, /root\.unmount\(\)/)
+  assert.match(client, /observer\.disconnect\(\)/)
+  assert.match(client, /DSH 0\.2\.0-rc\.2 Plugins page DOM bridge/)
+})
