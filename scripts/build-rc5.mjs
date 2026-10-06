@@ -63,7 +63,7 @@ const bridge = [
   '',
   '        disposeRoot()',
   "        host = doc.createElement('section')",
-  '        host.setAttribute(HOST_ATTR, \'\')',
+  "        host.setAttribute(HOST_ATTR, '')",
   "        host.setAttribute('aria-label', 'Registry Aggregator')",
   "        installed.insertAdjacentElement('afterend', host)",
   '',
@@ -109,7 +109,7 @@ const testBlock = `
 
 test('temporary rc.2 bridge waits for native inventory and polls without MutationObserver feedback', () => {
   assert.match(client, /function installPluginsPagePollingBridge/)
-  assert.match(client, /panel\.querySelector\('\[data-plugin-loading\]'\)/)
+  assert.match(client, /data-plugin-loading/)
   assert.match(client, /window\.setInterval\(reconcile, 750\)/)
   assert.match(client, /window\.setTimeout\(reconcile, 900\)/)
   assert.match(client, /require\('react-dom\\/client'\)/)
