@@ -39,7 +39,7 @@ diff --git a/packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx 
      | 'plugins.add.actions'
      | 'plugins.detail.actions' | 'plugins.detail.badge' | 'plugins.detail.section'
    >
-@@ -1530,6 +1530,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
+@@ -1530,5 +1530,6 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
            )
          : null}
 +      {loaded && showsCards ? renderSlot('plugins.main.section', {}) : null}
