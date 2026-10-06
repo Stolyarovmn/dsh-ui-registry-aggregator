@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: '@stolyarovmn/dsh-ui-registry-aggregator',
   factory(require) {
     const React = require('react')
+    const { createRoot } = require('react-dom/client')
     const h = React.createElement
     const NS = 'registryAggregator'
     const PACKAGE = '@stolyarovmn/dsh-ui-registry-aggregator'
@@ -1923,6 +1924,73 @@ window.__ModuleLoader__.load({
       )
     }
 
+
+    // Temporary DSH 0.2.0-rc.2 compatibility bridge.
+    // Stock rc.2 does not expose a supported list-level Plugin Manager slot,
+    // so this mirrors the pre-0.2 Registry Aggregator self-embed approach.
+    // Keep this isolated and removable once an upstream slot exists.
+    function installPluginsPageDomBridge(ctx) {
+      const doc = window.document
+      const Observer = window.MutationObserver
+      if (!doc?.querySelector || typeof Observer !== 'function' || typeof createRoot !== 'function') return () => {}
+
+      const HOST_ATTR = 'data-registry-aggregator-main-surface'
+      const bridgeCss = `
+        [${HOST_ATTR}]{box-sizing:border-box;width:100%;max-width:960px;padding-top:24px;border-top:.5px solid var(--dsw-alias-border-l4)}
+        [${HOST_ATTR}] .ra-root{padding:0 0 8px}
+        [${HOST_ATTR}] .ra-tabs{margin-top:0}
+      `
+      let host
+      let root
+      let scheduled = false
+
+      const disposeRoot = () => {
+        if (root) {
+          try { root.unmount() } catch {}
+          root = undefined
+        }
+        if (host?.isConnected) host.remove()
+        host = undefined
+      }
+
+      const reconcile = () => {
+        scheduled = false
+        const panel = doc.querySelector('section[data-plugin-panel]')
+        const installed = panel?.querySelector('section[data-plugin-group="bundles"]')
+        if (!panel || !installed) {
+          disposeRoot()
+          return
+        }
+        if (host?.isConnected && host.parentElement === panel && installed.nextElementSibling === host) return
+
+        disposeRoot()
+        host = doc.createElement('section')
+        host.setAttribute(HOST_ATTR, '')
+        host.setAttribute('aria-label', 'Registry Aggregator')
+        installed.insertAdjacentElement('afterend', host)
+        root = createRoot(host)
+        root.render(h(React.Fragment, null,
+          h('style', null, bridgeCss),
+          h(RegistryAggregator, { t: ctx.locale.bind(NS), view: 'page' }),
+        ))
+      }
+
+      const schedule = () => {
+        if (scheduled) return
+        scheduled = true
+        queueMicrotask(reconcile)
+      }
+      const observer = new Observer(schedule)
+      const observationRoot = doc.body ?? doc.documentElement
+      if (observationRoot) observer.observe(observationRoot, { childList: true, subtree: true })
+      schedule()
+
+      return () => {
+        observer.disconnect()
+        disposeRoot()
+      }
+    }
+
     return {
       inject: ['slots', 'locale', 'connection', 'configForms', 'remote', 'remote.pluginManager'],
       apply(ctx) {
@@ -1930,6 +1998,7 @@ window.__ModuleLoader__.load({
         remote = ctx.remote
         sourceConfigForm = ctx.configForms.get(HOST_ENTRY)
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'registry-aggregator: locale')
+        ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () => installPluginsPageDomBridge(ctx)), 'registry-aggregator: DSH 0.2.0-rc.2 Plugins page DOM bridge')
         ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
           ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
             name: 'plugins.bundle.config',
