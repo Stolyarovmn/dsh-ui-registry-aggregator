@@ -60,13 +60,13 @@ diff --git a/packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.
 diff --git a/docs/subsystems/slots.md b/docs/subsystems/slots.md
 --- a/docs/subsystems/slots.md
 +++ b/docs/subsystems/slots.md
-@@ -119,6 +119,7 @@ root
- │     └─ settings.section
+@@ -133,6 +133,7 @@ root
+ │        ├─ settings.models.provider-card
+ │        ├─ settings.models.footer
  │        └─ settings.plugins.tab
  ├─ main
 +│  ├─ plugins.main.section
  │  ├─ plugins.add.actions
  │  ├─ plugins.item
- │  ├─ plugins.bundle.config
 -- 
 2.51.0
