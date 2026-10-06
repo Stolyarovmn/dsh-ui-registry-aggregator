@@ -15,7 +15,15 @@ test('targets only DSH 0.2.x', () => {
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-settings'))
 })
 
-test('uses the native bundle slot but binds the Host entry form explicitly', () => {
+test('uses native and compatibility Plugins surfaces with bundle-detail fallback and binds the Host entry form explicitly', () => {
+  assert.match(client, /plugins\.list\.tab/)
+  assert.match(client, /function RegistryListTab/)
+  assert.match(client, /view === 'label'/)
+  assert.match(client, /data-registry-list-tab/)
+  assert.match(client, /plugins\.main\.section/)
+  assert.match(client, /name: 'plugins\.main\.section'/)
+  assert.match(client, /id: 'registry-aggregator'/)
+  assert.match(client, /order: 100/)
   assert.match(client, /plugins\.bundle\.config/)
   assert.match(client, /ctx\.configForms\.get\(HOST_ENTRY\)/)
   assert.match(client, /ctx\.configForms\.whileServed\(\[HOST_ENTRY\]/)
@@ -196,4 +204,13 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
   assert.match(client, /Number\(left\.bundle\.name === PACKAGE\)/)
   assert.match(client, /bulkUpdating/)
   assert.match(client, /updateAll/)
+})
+
+
+test('main Plugins surface and bundle fallback share the same Registry Aggregator view safely', () => {
+  assert.match(client, /const active = view === undefined \|\| view === 'page'/)
+  assert.match(client, /useUpdateDiscovery\(active\)/)
+  assert.match(client, /if \(!active\) return null/)
+  assert.match(client, /registry-aggregator: Plugins main page/)
+  assert.match(client, /registry-aggregator: bundle page fallback/)
 })

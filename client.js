@@ -1863,8 +1863,9 @@ window.__ModuleLoader__.load({
     }
 
     function RegistryAggregator({ t, view }) {
+      const active = view === undefined || view === 'page'
       const [tab, setTab] = React.useState('sources')
-      const updateDiscovery = useUpdateDiscovery(view === 'page')
+      const updateDiscovery = useUpdateDiscovery(active)
       const formState = React.useSyncExternalStore(
         listener => sourceConfigForm.subscribe(listener),
         () => sourceConfigForm.getSnapshot(),
@@ -1874,7 +1875,7 @@ window.__ModuleLoader__.load({
         state: formState,
         mutate: (operations, expectedRevision) => sourceConfigForm.mutate(operations, expectedRevision),
       }), [formState])
-      if (view !== 'page') return null
+      if (!active) return null
       const updateCount = updateDiscovery.state.items.length
       const updateLabel = h('span', { className: 'ra-tab-label' },
         t('updates'),
@@ -1923,6 +1924,41 @@ window.__ModuleLoader__.load({
       )
     }
 
+
+    function RegistryListTab({ t, mode, view = 'page' }) {
+      const updateDiscovery = useUpdateDiscovery(mode === 'updates')
+      const formState = React.useSyncExternalStore(
+        listener => sourceConfigForm.subscribe(listener),
+        () => sourceConfigForm.getSnapshot(),
+        () => sourceConfigForm.getSnapshot(),
+      )
+      const form = React.useMemo(() => ({
+        state: formState,
+        mutate: (operations, expectedRevision) => sourceConfigForm.mutate(operations, expectedRevision),
+      }), [formState])
+      const label = mode === 'browse' ? t('browse') : mode === 'updates' ? t('updates') : t('sources')
+      const updateCount = mode === 'updates' ? updateDiscovery.state.items.length : 0
+
+      if (view === 'label') {
+        return h('span', { className: 'ra-tab-label' },
+          label,
+          updateCount > 0 ? h('span', { className: 'ra-update-badge', 'aria-hidden': true }, updateCount > 99 ? '99+' : String(updateCount)) : null,
+        )
+      }
+      if (view !== 'page' && view !== undefined) return null
+
+      const body = mode === 'browse'
+        ? h(BrowseView, { t })
+        : mode === 'updates'
+          ? h(UpdatesView, { t, discovery: updateDiscovery })
+          : h(SourcesView, { t, form })
+
+      return h('div', { className: 'ra-root', 'data-registry-list-tab': mode },
+        h('style', null, css),
+        body,
+      )
+    }
+
     return {
       inject: ['slots', 'locale', 'connection', 'configForms', 'remote', 'remote.pluginManager'],
       apply(ctx) {
@@ -1930,12 +1966,34 @@ window.__ModuleLoader__.load({
         remote = ctx.remote
         sourceConfigForm = ctx.configForms.get(HOST_ENTRY)
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'registry-aggregator: locale')
+        for (const [mode, order, labelKey] of [
+          ['sources', 20, 'sources'],
+          ['browse', 30, 'browse'],
+          ['updates', 40, 'updates'],
+        ]) {
+          ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
+            ctx.slots.inject('plugins.list.tab', () => ctx.slots.register({
+              name: 'plugins.list.tab',
+              id: `registry-aggregator.${mode}`,
+              order,
+              label: () => ctx.locale.bind(NS)(labelKey),
+              locale: NS,
+              inject: () => ({ mode }),
+            }, RegistryListTab))), `registry-aggregator: legacy Plugins ${mode} tab`)
+        }
+        ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
+          ctx.slots.inject('plugins.main.section', () => ctx.slots.register({
+            name: 'plugins.main.section',
+            id: 'registry-aggregator',
+            order: 100,
+            locale: NS,
+          }, RegistryAggregator))), 'registry-aggregator: Plugins main page')
         ctx.effect(() => ctx.configForms.whileServed([HOST_ENTRY], () =>
           ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
             name: 'plugins.bundle.config',
             key: PACKAGE,
             locale: NS,
-          }, RegistryAggregator))), 'registry-aggregator: bundle page')
+          }, RegistryAggregator))), 'registry-aggregator: bundle page fallback')
       },
     }
   },
