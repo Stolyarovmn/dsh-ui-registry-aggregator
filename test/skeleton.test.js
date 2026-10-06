@@ -199,16 +199,35 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
 })
 
 
-test('temporary rc.2 bridge waits for native inventory and polls without MutationObserver feedback', () => {
+
+test('rc.2 main Plugin Manager bridge becomes a native-style Installed/Sources/Browse/Updates surface', () => {
+  assert.ok(client.includes('function PluginsPageBridgeSurface'))
+  assert.ok(client.includes("['installed', t('installed'), installedCount]"))
+  assert.ok(client.includes("['sources', t('sources'), '']"))
+  assert.ok(client.includes("['browse', t('browse'), '']"))
+  assert.ok(client.includes("['updates', t('updates'), updateCount > 0 ? String(updateCount) : '']"))
+  assert.ok(client.includes('ra-native-tab'))
+  assert.ok(client.includes('font-size:14px;line-height:22px;font-weight:500'))
+  assert.ok(client.includes("tab === 'installed' && updateCount > 0"))
+  assert.ok(client.includes("t('updateAll')"))
+})
+
+test('Installed cards expose target-version update buttons backed by the native Plugin Manager', () => {
+  assert.ok(client.includes('data-ra-installed-update'))
+  assert.ok(client.includes("button.textContent = 'Update → v' + item.availableVersion"))
+  assert.ok(client.includes('void runUpdate(item)'))
+  assert.ok(client.includes('updateInstalledPlugin(item.bundle, item.availableVersion'))
+  assert.ok(client.includes("Number(left.bundle.name === PACKAGE)"))
+})
+
+test('rc.2 bridge is removed on detail pages and never observes native React DOM mutations', () => {
   assert.ok(client.includes('function installPluginsPagePollingBridge'))
   assert.ok(client.includes('data-plugin-loading'))
+  assert.ok(client.includes("if (!installed) {"))
+  assert.ok(client.includes('disposeRoot()'))
+  assert.ok(client.includes("head.insertAdjacentElement('afterend', host)"))
+  assert.ok(client.includes('installedHead.style.display = headDisplay'))
+  assert.ok(client.includes('cardsList.style.display = cardsDisplay'))
   assert.ok(client.includes('window.setInterval(reconcile, 750)'))
-  assert.ok(client.includes('window.setTimeout(reconcile, 900)'))
-  assert.ok(client.includes("require('react-dom/client')"))
-  assert.ok(client.includes('section[data-plugin-panel]'))
-  assert.ok(client.includes('section[data-plugin-group="bundles"]'))
-  assert.ok(client.includes("insertAdjacentElement('afterend', host)"))
-  assert.ok(client.includes('data-registry-aggregator-main-surface'))
-  assert.ok(client.includes('root.unmount()'))
   assert.equal(client.includes('MutationObserver'), false)
 })
