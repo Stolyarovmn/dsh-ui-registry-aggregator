@@ -197,3 +197,18 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
   assert.match(client, /bulkUpdating/)
   assert.match(client, /updateAll/)
 })
+
+
+test('temporary rc.2 bridge waits for native inventory and polls without MutationObserver feedback', () => {
+  assert.ok(client.includes('function installPluginsPagePollingBridge'))
+  assert.ok(client.includes('data-plugin-loading'))
+  assert.ok(client.includes('window.setInterval(reconcile, 750)'))
+  assert.ok(client.includes('window.setTimeout(reconcile, 900)'))
+  assert.ok(client.includes("require('react-dom/client')"))
+  assert.ok(client.includes('section[data-plugin-panel]'))
+  assert.ok(client.includes('section[data-plugin-group="bundles"]'))
+  assert.ok(client.includes("insertAdjacentElement('afterend', host)"))
+  assert.ok(client.includes('data-registry-aggregator-main-surface'))
+  assert.ok(client.includes('root.unmount()'))
+  assert.equal(client.includes('MutationObserver'), false)
+})
