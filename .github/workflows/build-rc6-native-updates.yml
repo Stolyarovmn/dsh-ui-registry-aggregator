@@ -1,0 +1,55 @@
+name: Build RC6 native installed updates
+
+on:
+  push:
+    branches:
+      - fix/plugins-installed-native-updates-rc6
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build RC6 candidate
+        run: node scripts/build-rc6-native-updates.mjs
+      - name: Install test dependencies
+        run: npm install --package-lock=false --legacy-peer-deps
+      - name: Check JavaScript syntax
+        run: |
+          node --check index.js
+          node --check client.js
+          node --check source-core.js
+      - name: Run tests
+        run: npm test
+      - name: Pack dry run
+        run: npm pack --dry-run
+      - name: Install local plugin into isolated DSH 0.2.0-rc.2 profile
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+        run: |
+          corepack enable
+          corepack prepare pnpm@11 --activate
+          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 plugin --profile smoke add "file:$GITHUB_WORKSPACE"
+          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 --profile smoke --dump-config > /tmp/dsh-config.txt
+          grep -F "registry-aggregator" /tmp/dsh-config.txt
+          grep -F "@stolyarovmn/dsh-ui-registry-aggregator" /tmp/dsh-config.txt
+      - name: Commit generated RC6 candidate
+        run: |
+          if git diff --quiet -- client.js package.json test/skeleton.test.js; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client.js package.json test/skeleton.test.js
+          git commit -m "fix: integrate native Installed tabs and update actions"
+          git push origin HEAD:${GITHUB_REF_NAME}
