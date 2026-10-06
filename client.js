@@ -82,6 +82,7 @@ window.__ModuleLoader__.load({
       updateChecking: 'Checking installed plugins…',
       updateAvailable: '{installed} → {available}',
       updateAction: 'Update to {version}',
+      updating: 'Updating…',
       updateRetry: 'Retry update',
       updateFailed: 'Update failed',
       updateNone: 'Installed plugins are up to date',
@@ -197,6 +198,7 @@ window.__ModuleLoader__.load({
       updateChecking: '正在检查已安装插件…',
       updateAvailable: '{installed} → {available}',
       updateAction: '更新到 {version}',
+      updating: '更新中…',
       updateRetry: '重试更新',
       updateFailed: '更新失败',
       updateNone: '已安装插件均为最新版本',
@@ -246,13 +248,13 @@ window.__ModuleLoader__.load({
 
     const css = [
       '.ra-root{box-sizing:border-box;min-width:0;max-width:100%;overflow-x:hidden;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;padding:2px 0 8px}',
-      '.ra-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:min(100%,440px);padding:4px;margin:12px 0 24px;border-radius:12px;background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-2))}',
-      '.ra-tab{height:34px;padding:0 14px;border:.5px solid transparent;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer}',
-      '.ra-tab-label{display:inline-flex;align-items:center;justify-content:center;gap:6px}',
-      '.ra-update-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-primary-foreground);font-size:10px;line-height:16px;font-weight:700}',
+      '.ra-tabs{display:flex;align-items:center;gap:4px;width:auto;padding:0;margin:0 0 24px;background:transparent}',
+      '.ra-tab{height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:14px;line-height:22px;font-weight:500;cursor:pointer}',
+      '.ra-tab-label{display:inline-flex;align-items:baseline;justify-content:center;gap:8px}',
+      '.ra-update-badge{display:inline;color:var(--dsw-alias-label-caption);font-size:14px;line-height:22px;font-weight:400;font-variant-numeric:tabular-nums}',
       '.ra-tab:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
       '.ra-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}',
-      '.ra-tab[aria-selected=true]{border-color:var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font-weight:600}',
+      '.ra-tab[aria-selected=true]{background:transparent;color:var(--dsw-alias-label-primary);font-weight:600}',
       '.ra-section{display:grid;gap:14px;box-sizing:border-box;min-width:0;max-width:100%;overflow:hidden}',
       '.ra-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}',
       '.ra-heading{margin:0;font-size:14px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}',
@@ -264,6 +266,11 @@ window.__ModuleLoader__.load({
       '.ra-button:disabled{opacity:.5;cursor:not-allowed}',
       '.ra-button-primary{background:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-primary-foreground)}',
       '.ra-update-all{display:inline-flex;align-items:center;justify-content:center;gap:6px}',
+      '.ra-installed-update{box-sizing:border-box;position:relative;z-index:2;height:28px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;cursor:pointer}',
+      '.ra-installed-update:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
+      '.ra-installed-update:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}',
+      '.ra-installed-update:disabled{opacity:.5;cursor:default}',
+      '.ra-installed-update[data-state=busy]{color:var(--dsw-alias-label-tertiary)}',
       '.ra-panel{border:.5px solid var(--dsw-alias-border-l4);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}',
       '.ra-add-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px}',
       '.ra-add-form{display:grid;grid-template-columns:minmax(160px,1fr) minmax(130px,180px) minmax(220px,1.2fr) auto;gap:10px;padding:12px 13px;border-top:.5px solid var(--dsw-alias-border-l4);align-items:end}',
@@ -1788,7 +1795,7 @@ window.__ModuleLoader__.load({
             h('p', { className: 'ra-lead' }, t('updatesLead')),
           ),
           h('div', { className: 'ra-actions' },
-            state.items.length > 1 ? h('button', {
+            state.items.length > 0 ? h('button', {
               type: 'button',
               className: 'ra-button ra-update-all',
               title: bulkUpdating ? t('updatingAll') : t('updateAll'),
@@ -1935,6 +1942,8 @@ window.__ModuleLoader__.load({
       if (!doc?.querySelector || typeof Observer !== 'function' || typeof createRoot !== 'function') return () => {}
 
       const HOST_ATTR = 'data-registry-aggregator-main-surface'
+      const UPDATE_ATTR = 'data-registry-aggregator-installed-update'
+      const t = ctx.locale.bind(NS)
       const bridgeCss = `
         [${HOST_ATTR}]{box-sizing:border-box;width:100%;max-width:960px;padding-top:24px;border-top:.5px solid var(--dsw-alias-border-l4)}
         [${HOST_ATTR}] .ra-root{padding:0 0 8px}
@@ -1943,6 +1952,13 @@ window.__ModuleLoader__.load({
       let host
       let root
       let scheduled = false
+      let refreshController
+      let updateItems = []
+      const updateOperations = new Map()
+
+      const removeInstalledActions = () => {
+        for (const button of doc.querySelectorAll(`[${UPDATE_ATTR}]`)) button.remove()
+      }
 
       const disposeRoot = () => {
         if (root) {
@@ -1951,6 +1967,91 @@ window.__ModuleLoader__.load({
         }
         if (host?.isConnected) host.remove()
         host = undefined
+        removeInstalledActions()
+      }
+
+      const discoverUpdates = async signal => {
+        const bundles = (await readInstalledBundles())
+          .filter(bundle => bundle?.installed !== false && bundle?.name && bundle?.version)
+        const rows = []
+        for (let index = 0; index < bundles.length; index += 24) {
+          const chunk = bundles.slice(index, index + 24)
+          const value = await rpc('metadata', {
+            items: chunk.map(bundle => ({ key: bundle.name, packageName: bundle.name })),
+          }, signal)
+          rows.push(...(value?.plugins ?? []))
+        }
+        const byName = new Map(rows.map(row => [row.key, row]))
+        return bundles.map(bundle => {
+          const metadata = byName.get(bundle.name)
+          const availableVersion = metadata?.version
+          return {
+            bundle,
+            metadata,
+            availableVersion,
+            updateAvailable: Boolean(availableVersion && compareSemver(availableVersion, bundle.version) === 1),
+          }
+        }).filter(item => item.updateAvailable)
+      }
+
+      const runInstalledUpdate = async name => {
+        const item = updateItems.find(row => row.bundle.name === name)
+        if (!item || item.metadata?.compatibility === 'unsupported') return
+        const current = updateOperations.get(name)
+        if (['starting', 'installing', 'applying'].includes(current?.phase)) return
+        updateOperations.set(name, { phase: 'starting', error: '' })
+        schedule()
+        try {
+          await updateInstalledPlugin(item.bundle, item.availableVersion, progress => {
+            updateOperations.set(name, { ...(updateOperations.get(name) ?? {}), ...progress, error: '' })
+            schedule()
+          })
+          updateOperations.set(name, { phase: 'done', error: '' })
+          await refreshUpdates()
+        } catch (error) {
+          updateOperations.set(name, { phase: 'failed', error: String(error?.message ?? error) })
+          schedule()
+        }
+      }
+
+      const renderInstalledActions = installed => {
+        const byName = new Map(updateItems.map(item => [item.bundle.name, item]))
+        for (const card of installed.querySelectorAll('[data-plugin-package]')) {
+          const name = card.getAttribute('data-plugin-package')
+          const item = name ? byName.get(name) : undefined
+          let button = card.querySelector(`[${UPDATE_ATTR}]`)
+          if (!item) {
+            if (button) button.remove()
+            continue
+          }
+          const switchControl = card.querySelector('[role="switch"]')
+          const actions = switchControl?.parentElement
+          if (!switchControl || !actions) continue
+          if (!button) {
+            button = doc.createElement('button')
+            button.type = 'button'
+            button.className = 'ra-installed-update'
+            button.setAttribute(UPDATE_ATTR, '')
+            actions.insertBefore(button, switchControl)
+          }
+          const operation = updateOperations.get(name) ?? {}
+          const busy = ['starting', 'installing', 'applying'].includes(operation.phase)
+          const incompatible = item.metadata?.compatibility === 'unsupported'
+          const label = busy
+            ? t('updating')
+            : format(t, 'updateAction', { version: 'v' + item.availableVersion })
+          button.textContent = label
+          button.title = operation.error || label
+          button.setAttribute('aria-label', label)
+          button.toggleAttribute('data-state', busy)
+          if (busy) button.setAttribute('data-state', 'busy')
+          button.disabled = busy || incompatible
+          button.onclick = event => {
+            event.preventDefault()
+            event.stopPropagation()
+            void runInstalledUpdate(name)
+          }
+        }
       }
 
       const reconcile = () => {
@@ -1961,7 +2062,10 @@ window.__ModuleLoader__.load({
           disposeRoot()
           return
         }
-        if (host?.isConnected && host.parentElement === panel && installed.nextElementSibling === host) return
+        if (host?.isConnected && host.parentElement === panel && installed.nextElementSibling === host) {
+          renderInstalledActions(installed)
+          return
+        }
 
         disposeRoot()
         host = doc.createElement('section')
@@ -1971,8 +2075,9 @@ window.__ModuleLoader__.load({
         root = createRoot(host)
         root.render(h(React.Fragment, null,
           h('style', null, bridgeCss),
-          h(RegistryAggregator, { t: ctx.locale.bind(NS), view: 'page' }),
+          h(RegistryAggregator, { t, view: 'page' }),
         ))
+        renderInstalledActions(installed)
       }
 
       const schedule = () => {
@@ -1980,13 +2085,37 @@ window.__ModuleLoader__.load({
         scheduled = true
         queueMicrotask(reconcile)
       }
+
+      async function refreshUpdates() {
+        if (refreshController) refreshController.abort()
+        const controller = new AbortController()
+        refreshController = controller
+        try {
+          const items = await discoverUpdates(controller.signal)
+          if (controller.signal.aborted) return
+          updateItems = items
+          for (const key of [...updateOperations.keys()]) {
+            if (!items.some(item => item.bundle.name === key)) updateOperations.delete(key)
+          }
+          schedule()
+        } catch (error) {
+          if (error?.name !== 'AbortError') schedule()
+        }
+      }
+
       const observer = new Observer(schedule)
       const observationRoot = doc.body ?? doc.documentElement
       if (observationRoot) observer.observe(observationRoot, { childList: true, subtree: true })
+      const disposeChanged = typeof remote?.$on === 'function'
+        ? remote.$on('plugin-manager/changed', () => { void refreshUpdates() })
+        : undefined
       schedule()
+      void refreshUpdates()
 
       return () => {
         observer.disconnect()
+        if (refreshController) refreshController.abort()
+        if (typeof disposeChanged === 'function') disposeChanged()
         disposeRoot()
       }
     }
