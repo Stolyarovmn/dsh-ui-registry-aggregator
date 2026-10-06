@@ -14,7 +14,7 @@ Compatibility badges are evaluated against the DSH version that is actually runn
 
 Real Harness UI, manually verified on DSH `0.2.0-rc.2`:
 
-![Registry Aggregator integrated into the DSH 0.2 Plugin Manager](docs/screenshots/registry-aggregator-v0.5.2.webp)
+![Registry Aggregator integrated into the DSH 0.2 Plugin Manager](docs/screenshots/registry-aggregator-v0.5.2.png)
 
 ## Install from npm
 
@@ -156,4 +156,4 @@ pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile $PROFILE
 
 - `dsh-0.1.7` — stable `v0.4.17` line for DSH `0.1.7-rc.2`.
 - `dsh-0.1.5` — historical DSH `0.1.5-rc.3` compatibility line.
-- `main` — neutral project landing branch.
+- `main` — default/current stable line; currently mirrors the DSH 0.2.x implementation. Future latest supported lines move here, while version-specific maintenance branches remain preserved.
