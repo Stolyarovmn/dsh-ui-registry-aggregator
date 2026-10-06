@@ -1,0 +1,20 @@
+name: Validate upstream Plugin Manager patch
+
+on:
+  push:
+    branches:
+      - upstream/dsh-plugin-manager-main-section
+
+jobs:
+  apply-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check patch against pinned Harness master
+        run: |
+          git clone --filter=blob:none https://github.com/deepseek-ai/deepseek-harness.git /tmp/deepseek-harness
+          git -C /tmp/deepseek-harness checkout 5badb15009ae1756c3afe0ae0cef1faafc290ccc
+          git -C /tmp/deepseek-harness apply --check "$GITHUB_WORKSPACE/docs/upstream/deepseek-harness-plugins-main-section.patch"
+          git -C /tmp/deepseek-harness apply "$GITHUB_WORKSPACE/docs/upstream/deepseek-harness-plugins-main-section.patch"
+          git -C /tmp/deepseek-harness diff --check
