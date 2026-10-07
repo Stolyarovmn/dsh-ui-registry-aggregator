@@ -21,12 +21,19 @@ jobs:
           set -euo pipefail
           base64 -d docs/screenshots/.tmp-readme-hires/part00 > docs/screenshots/registry-aggregator-v0.5.2.png
           python - <<'PY'
-          from PIL import Image
+          import struct
           p='docs/screenshots/registry-aggregator-v0.5.2.png'
-          im=Image.open(p)
-          print('screenshot:', im.size, im.mode)
-          if im.size != (1538, 820):
-              raise SystemExit(f'unexpected screenshot dimensions: {im.size}')
+          with open(p,'rb') as f:
+              if f.read(8) != b'\x89PNG\r\n\x1a\n':
+                  raise SystemExit('not a PNG')
+              length=struct.unpack('>I',f.read(4))[0]
+              kind=f.read(4)
+              if kind != b'IHDR' or length < 8:
+                  raise SystemExit('missing IHDR')
+              size=struct.unpack('>II',f.read(8))
+          print('screenshot:', size)
+          if size != (1538, 820):
+              raise SystemExit(f'unexpected screenshot dimensions: {size}')
           PY
           rm -rf docs/screenshots/.tmp-readme-hires
           rm -f .github/workflows/finalize-readable-screenshot.yml
