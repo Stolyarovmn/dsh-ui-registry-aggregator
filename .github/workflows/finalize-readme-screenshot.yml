@@ -20,8 +20,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat docs/screenshots/.tmp-exact-0.5.3/part* > /tmp/registry-aggregator-v0.5.2.png.b64
-          base64 -d /tmp/registry-aggregator-v0.5.2.png.b64 > docs/screenshots/registry-aggregator-v0.5.2.png
+          cat docs/screenshots/.tmp-exact-0.5.3/part* | tr -d '[:space:]' > /tmp/registry-aggregator-v0.5.2.payload.b64
+          base64 -d /tmp/registry-aggregator-v0.5.2.payload.b64 > /tmp/registry-aggregator-v0.5.2.payload.xz
+          xz -dc /tmp/registry-aggregator-v0.5.2.payload.xz > docs/screenshots/registry-aggregator-v0.5.2.png
           python - <<'PY'
           import struct
           p='docs/screenshots/registry-aggregator-v0.5.2.png'
