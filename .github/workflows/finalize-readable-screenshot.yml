@@ -1,0 +1,41 @@
+name: Finalize readable screenshot
+
+on:
+  push:
+    branches:
+      - docs/readable-v0.5.2-screenshot
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decode screenshot and clean staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d docs/screenshots/.tmp-readme-hires/part00 > docs/screenshots/registry-aggregator-v0.5.2.png
+          python - <<'PY'
+          from PIL import Image
+          p='docs/screenshots/registry-aggregator-v0.5.2.png'
+          im=Image.open(p)
+          print('screenshot:', im.size, im.mode)
+          if im.size != (1538, 820):
+              raise SystemExit(f'unexpected screenshot dimensions: {im.size}')
+          PY
+          rm -rf docs/screenshots/.tmp-readme-hires
+          rm -f .github/workflows/finalize-readable-screenshot.yml
+      - name: Commit finalized screenshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'docs: replace README screenshot with readable crop'
+          git push origin HEAD:docs/readable-v0.5.2-screenshot
