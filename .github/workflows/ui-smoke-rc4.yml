@@ -209,11 +209,11 @@ jobs:
             await shot('ui-05-final.png')
 
             if (!await click('Automation tasks')) throw new Error('Automation tasks sidebar control not found')
-            body = await waitFor(v => v.includes('Automation tasks') && v.includes('Task catalog'))
+            body = await waitFor(v => v.includes('Automation tasks') && v.includes('New automation task'))
             fs.writeFileSync('/tmp/ui-06-schedule.txt', body)
             await shot('ui-06-schedule.png')
-            if (!body.includes('Automation tasks') || !body.includes('Task catalog')) {
-              throw new Error('Automation Tasks panel did not mount the native task catalog: ' + body.slice(0, 1200))
+            if (!body.includes('Automation tasks') || !body.includes('New automation task')) {
+              throw new Error('Automation Tasks panel did not mount the native task manager: ' + body.slice(0, 1200))
             }
             ws.close()
           }
