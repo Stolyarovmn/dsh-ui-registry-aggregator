@@ -729,6 +729,15 @@ function safeIconPath(value) {
   return { path: clean, mediaType }
 }
 
+function manifestIconPath(manifest) {
+  const direct = safeIconPath(manifest?.icon)
+  if (direct) return direct
+  const exported = manifest?.exports?.['./icon']
+  if (typeof exported === 'string') return safeIconPath(exported)
+  if (!exported || typeof exported !== 'object' || Array.isArray(exported)) return undefined
+  return safeIconPath(exported.default ?? exported.import ?? exported.require)
+}
+
 function readmeIconPath(markdown) {
   const source = String(markdown ?? '')
   const candidates = []
@@ -960,7 +969,7 @@ async function resolveNpmIcon(item, options) {
   const version = text(item?.version)
   if (!packageName || !version) return undefined
   const manifest = await npmManifest(item, options)
-  const icon = safeIconPath(manifest?.icon)
+  const icon = manifestIconPath(manifest)
   if (icon) {
     const packagePath = packageName.startsWith('@')
       ? packageName.split('/').map(part => encodeURIComponent(part)).join('/')
@@ -1003,7 +1012,7 @@ async function resolveGithubIcon(item, options) {
   } catch {
     manifest = undefined
   }
-  const icon = safeIconPath(manifest?.icon)
+  const icon = manifestIconPath(manifest)
   if (icon) {
     const iconUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(parts.owner) + '/' + encodeURIComponent(parts.repo) + '/HEAD/' + encodedPath(icon.path)
     return iconDataFromUrl(iconUrl, icon.mediaType, options)
@@ -1020,13 +1029,17 @@ export async function resolvePluginIcons(items, options = {}) {
     const cached = cachedIcon(cacheKey)
     if (cached.hit) return { key, ...(cached.value ? { icon: cached.value } : {}) }
     let icon
+    let failed = false
     try {
       if (item?.packageName && item?.version) icon = await resolveNpmIcon(item, options)
       if (!icon && item?.repository) icon = await resolveGithubIcon(item, options)
     } catch {
+      failed = true
       icon = undefined
     }
-    cacheIcon(cacheKey, icon ?? null)
+    // A network/rate-limit failure is not evidence that the package has no icon.
+    // Cache confirmed absence, but let transient failures retry on the next refresh.
+    if (!failed) cacheIcon(cacheKey, icon ?? null)
     return { key, ...(icon ? { icon } : {}) }
   }).then(rows => rows.filter(Boolean))
 }

@@ -204,6 +204,42 @@ test('plugin icons follow the DSH manifest-relative icon contract and return dat
   assert.match(rows[0].icon, /^data:image\/svg\+xml;base64,/)
 })
 
+test('plugin icons honor the exported ./icon display resource when top-level icon is absent', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>'
+  const fetchImpl = async input => {
+    const url = new URL(input)
+    if (url.hostname === 'registry.npmjs.org') return Response.json({ exports: { './icon': './assets/exported-icon.svg' } })
+    if (url.hostname === 'unpkg.com') {
+      assert.ok(url.pathname.endsWith('/assets/exported-icon.svg'))
+      return new Response(svg, { status: 200, headers: { 'content-type': 'image/svg+xml' } })
+    }
+    throw new Error('unexpected URL ' + url)
+  }
+  const rows = await resolvePluginIcons([{ key: 'exported-icon', packageName: '@acme/dsh-exported-icon', version: '1.2.6' }], { fetchImpl, resolveHost: publicResolver })
+  assert.match(rows[0].icon, /^data:image\/svg\+xml;base64,/)
+})
+
+test('transient icon fetch failures are not negative-cached', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg>'
+  let manifestCalls = 0
+  const fetchImpl = async input => {
+    const url = new URL(input)
+    if (url.hostname === 'registry.npmjs.org') {
+      manifestCalls += 1
+      if (manifestCalls === 1) throw new Error('temporary registry failure')
+      return Response.json({ icon: './icon.svg' })
+    }
+    if (url.hostname === 'unpkg.com') return new Response(svg, { status: 200, headers: { 'content-type': 'image/svg+xml' } })
+    throw new Error('unexpected URL ' + url)
+  }
+  const item = { key: 'retry-icon', packageName: '@acme/dsh-retry-icon', version: '1.2.7' }
+  const first = await resolvePluginIcons([item], { fetchImpl, resolveHost: publicResolver })
+  assert.deepEqual(first, [{ key: 'retry-icon' }])
+  const second = await resolvePluginIcons([item], { fetchImpl, resolveHost: publicResolver })
+  assert.match(second[0].icon, /^data:image\/svg\+xml;base64,/)
+  assert.equal(manifestCalls, 2)
+})
+
 test('plugin icons use a safe repository-local README logo when the manifest has no icon', async () => {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 1h14v14H1z"/></svg>'
   const fetchImpl = async input => {
