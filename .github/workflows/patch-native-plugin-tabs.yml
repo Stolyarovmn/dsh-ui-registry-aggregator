@@ -1,3 +1,4 @@
+# one-shot migration workflow; self-deletes after a successful patch
 name: Migrate Registry tabs to native Plugin Manager slot
 
 on:
