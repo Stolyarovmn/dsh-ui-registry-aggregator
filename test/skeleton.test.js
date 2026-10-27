@@ -201,6 +201,15 @@ test('Updates expose a live tab indicator and sequential Update all action', () 
 
 
 
+test('DSH 0.2.1 uses the official Plugin Manager tab slot for Registry views', () => {
+  assert.match(client, /ctx\.slots\.inject\('plugins\.tab'/)
+  assert.match(client, /registerNativeTab\('registry-sources', 10/)
+  assert.match(client, /registerNativeTab\('registry-browse', 20/)
+  assert.match(client, /registerNativeTab\('registry-updates', 30/)
+  assert.match(client, /nativePluginTabsServed = true/)
+  assert.match(client, /legacy DSH 0\.2\.0-rc\.2 Plugins page fallback/)
+})
+
 test('rc.2 main Plugin Manager bridge becomes a native-style Installed/Sources/Browse/Updates surface', () => {
   assert.ok(client.includes('function PluginsPageBridgeSurface'))
   assert.ok(client.includes("['installed', t('installed'), installedCount]"))
