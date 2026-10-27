@@ -1,0 +1,71 @@
+name: Apply RC4 icon resilience patch
+
+on:
+  push:
+    branches:
+      - fix/rc4-icons-and-smoke
+    paths:
+      - .github/workflows/patch-rc4-icons.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Patch icon resolution and regression tests
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+
+          const sourcePath = 'source-core.js'
+          let source = fs.readFileSync(sourcePath, 'utf8')
+
+          const safeIconTail = `  return { path: clean, mediaType }\n}\n\nfunction readmeIconPath(markdown) {`
+          const helper = `  return { path: clean, mediaType }\n}\n\nfunction manifestIconPath(manifest) {\n  const direct = safeIconPath(manifest?.icon)\n  if (direct) return direct\n  const exported = manifest?.exports?.['./icon']\n  if (typeof exported === 'string') return safeIconPath(exported)\n  if (!exported || typeof exported !== 'object' || Array.isArray(exported)) return undefined\n  return safeIconPath(exported.default ?? exported.import ?? exported.require)\n}\n\nfunction readmeIconPath(markdown) {`
+          if (!source.includes(safeIconTail)) throw new Error('safeIconPath insertion anchor changed')
+          source = source.replace(safeIconTail, helper)
+
+          const directIconReads = [...source.matchAll(/const icon = safeIconPath\(manifest\?\.icon\)/g)].length
+          if (directIconReads !== 2) throw new Error(`expected 2 direct manifest icon reads, found ${directIconReads}`)
+          source = source.replaceAll('const icon = safeIconPath(manifest?.icon)', 'const icon = manifestIconPath(manifest)')
+
+          const oldCacheBlock = `    let icon\n    try {\n      if (item?.packageName && item?.version) icon = await resolveNpmIcon(item, options)\n      if (!icon && item?.repository) icon = await resolveGithubIcon(item, options)\n    } catch {\n      icon = undefined\n    }\n    cacheIcon(cacheKey, icon ?? null)\n    return { key, ...(icon ? { icon } : {}) }`
+          const newCacheBlock = `    let icon\n    let failed = false\n    try {\n      if (item?.packageName && item?.version) icon = await resolveNpmIcon(item, options)\n      if (!icon && item?.repository) icon = await resolveGithubIcon(item, options)\n    } catch {\n      failed = true\n      icon = undefined\n    }\n    // A network/rate-limit failure is not evidence that the package has no icon.\n    // Cache confirmed absence, but let transient failures retry on the next refresh.\n    if (!failed) cacheIcon(cacheKey, icon ?? null)\n    return { key, ...(icon ? { icon } : {}) }`
+          if (!source.includes(oldCacheBlock)) throw new Error('resolvePluginIcons cache block changed')
+          source = source.replace(oldCacheBlock, newCacheBlock)
+          fs.writeFileSync(sourcePath, source)
+
+          const testPath = 'test/source-core.test.js'
+          let tests = fs.readFileSync(testPath, 'utf8')
+          const testAnchor = `test('plugin icons use a safe repository-local README logo when the manifest has no icon', async () => {`
+          if (!tests.includes(testAnchor)) throw new Error('icon test insertion anchor changed')
+          const regressions = `test('plugin icons honor the exported ./icon display resource when top-level icon is absent', async () => {\n  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>'\n  const fetchImpl = async input => {\n    const url = new URL(input)\n    if (url.hostname === 'registry.npmjs.org') {\n      return Response.json({ exports: { './icon': './assets/exported-icon.svg' } })\n    }\n    if (url.hostname === 'unpkg.com') {\n      assert.ok(url.pathname.endsWith('/assets/exported-icon.svg'))\n      return new Response(svg, { status: 200, headers: { 'content-type': 'image/svg+xml' } })\n    }\n    throw new Error('unexpected URL ' + url)\n  }\n\n  const rows = await resolvePluginIcons([\n    { key: 'exported-icon', packageName: '@acme/dsh-exported-icon', version: '1.2.6' },\n  ], { fetchImpl, resolveHost: publicResolver })\n\n  assert.match(rows[0].icon, /^data:image\\/svg\\+xml;base64,/)\n})\n\ntest('transient icon fetch failures are not negative-cached', async () => {\n  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg>'\n  let manifestCalls = 0\n  const fetchImpl = async input => {\n    const url = new URL(input)\n    if (url.hostname === 'registry.npmjs.org') {\n      manifestCalls += 1\n      if (manifestCalls === 1) throw new Error('temporary registry failure')\n      return Response.json({ icon: './icon.svg' })\n    }\n    if (url.hostname === 'unpkg.com') {\n      return new Response(svg, { status: 200, headers: { 'content-type': 'image/svg+xml' } })\n    }\n    throw new Error('unexpected URL ' + url)\n  }\n  const item = { key: 'retry-icon', packageName: '@acme/dsh-retry-icon', version: '1.2.7' }\n\n  const first = await resolvePluginIcons([item], { fetchImpl, resolveHost: publicResolver })\n  assert.deepEqual(first, [{ key: 'retry-icon' }])\n  const second = await resolvePluginIcons([item], { fetchImpl, resolveHost: publicResolver })\n  assert.match(second[0].icon, /^data:image\\/svg\\+xml;base64,/)\n  assert.equal(manifestCalls, 2)\n})\n\n`
+          tests = tests.replace(testAnchor, regressions + testAnchor)
+          fs.writeFileSync(testPath, tests)
+          NODE
+
+          node --check source-core.js
+          node --test test/source-core.test.js
+
+      - name: Commit patch and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-rc4-icons.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source-core.js test/source-core.test.js .github/workflows/patch-rc4-icons.yml
+          git commit -m "fix: retry transient plugin icon resolution"
+          git fetch origin "$GITHUB_REF_NAME"
+          git rebase "origin/$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
