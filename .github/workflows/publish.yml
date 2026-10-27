@@ -79,7 +79,7 @@ jobs:
             npm publish --access public --provenance
           fi
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,10 +89,25 @@ jobs:
           VERSION="$(node -p "require('./package.json').version")"
           TAG="v$VERSION"
           NOTES=".github/release-notes/v$VERSION.md"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "GitHub release $TAG already exists."
-          elif [ -f "$NOTES" ]; then
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file "$NOTES"
+
+          if [[ "$VERSION" == *-* ]]; then
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              if [ -f "$NOTES" ]; then
+                gh release edit "$TAG" --prerelease --notes-file "$NOTES"
+              else
+                gh release edit "$TAG" --prerelease
+              fi
+            elif [ -f "$NOTES" ]; then
+              gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file "$NOTES" --prerelease
+            else
+              gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --generate-notes --prerelease
+            fi
           else
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --generate-notes
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              if [ -f "$NOTES" ]; then gh release edit "$TAG" --notes-file "$NOTES"; fi
+            elif [ -f "$NOTES" ]; then
+              gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file "$NOTES"
+            else
+              gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --generate-notes
+            fi
           fi
