@@ -2,6 +2,28 @@
 
 All notable changes to Registry Aggregator are documented here.
 
+## [0.5.3-rc.1] - 2026-10-27
+
+### Fixed
+
+- Transient npm/unpkg/GitHub failures while resolving plugin artwork are no longer negative-cached as a confirmed missing icon; a subsequent refresh can retry immediately.
+- Browse artwork discovery now accepts the current DSH display-resource export `exports["./icon"]` as well as the legacy top-level `icon` field.
+
+### Changed
+
+- The package now exports `"./icon": "./icon.svg"` while retaining the top-level `icon` field for compatibility.
+- CI now probes the already-published Registry Aggregator `0.5.2` and Schedule Tab `0.8.0` artwork directly, proving their SVG assets remain retrievable.
+- DSH install/boot smoke now covers `0.2.0-rc.2`, `0.2.1-rc.2`, `0.2.1-rc.3`, and `0.2.1-rc.4`.
+
+### Compatibility
+
+- Peer range remains `>=0.2.0-rc.2 <0.3.0` because every currently tested 0.2.x target in the CI matrix installs and boots successfully.
+
+### Validation
+
+- JavaScript syntax, repository tests, official display-resource export checks, published-artwork probes, package dry-run, and all four DSH install/boot smoke jobs pass.
+- Final browser verification of the real Plugin Manager artwork is still required before promoting this RC to stable.
+
 ## [0.5.2] - 2026-10-06
 
 ### Added
