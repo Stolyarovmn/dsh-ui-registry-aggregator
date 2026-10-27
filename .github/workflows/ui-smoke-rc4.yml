@@ -72,7 +72,7 @@ jobs:
           test -n "$URL"
           printf '%s' "$URL" >/tmp/dsh-url.txt
 
-      - name: Verify Plugin Manager, Browse and artwork in Chromium
+      - name: Verify Plugin Manager, Browse, artwork and Schedule in Chromium
         shell: bash
         run: |
           set -euo pipefail
@@ -131,7 +131,10 @@ jobs:
               fs.writeFileSync('/tmp/' + name, Buffer.from(r.data, 'base64'))
             }
             const focusSearch = () => evalJs(`(() => {
-              const i=[...document.querySelectorAll('input')].find(x => (x.placeholder||'').trim()==='Search enabled registries and catalogs.')
+              const i=[...document.querySelectorAll('input')].find(x => {
+                const placeholder=(x.placeholder||'').trim()
+                return placeholder==='Search plugins' || placeholder==='Search enabled registries and catalogs.'
+              })
               if (!i) return false
               i.focus(); i.select(); return document.activeElement===i
             })()`)
@@ -173,6 +176,12 @@ jobs:
             if (!body.includes('Registry Aggregator') || !body.includes('Automation Tasks Attention')) {
               throw new Error('Installed plugin inventory did not load: ' + body.slice(0, 1200))
             }
+            if (/Get started/i.test(body)) {
+              if (!await click('Close')) throw new Error('Get started dialog is visible but its Close control was not found')
+              await sleep(500)
+              body = await bodyText()
+              if (/Get started/i.test(body)) throw new Error('Get started dialog did not close')
+            }
 
             if (!await click('Browse')) throw new Error('Browse tab not found')
             body = await waitFor(v => /Browse plugins/i.test(v))
@@ -198,6 +207,14 @@ jobs:
 
             fs.writeFileSync('/tmp/ui-05-final.txt', await bodyText())
             await shot('ui-05-final.png')
+
+            if (!await click('Automation tasks')) throw new Error('Automation tasks sidebar control not found')
+            body = await waitFor(v => v.includes('Automation tasks') && v.includes('Task catalog'))
+            fs.writeFileSync('/tmp/ui-06-schedule.txt', body)
+            await shot('ui-06-schedule.png')
+            if (!body.includes('Automation tasks') || !body.includes('Task catalog')) {
+              throw new Error('Automation Tasks panel did not mount the native task catalog: ' + body.slice(0, 1200))
+            }
             ws.close()
           }
           main().catch(e => { console.error(e); process.exit(1) })
