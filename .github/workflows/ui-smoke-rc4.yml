@@ -1,0 +1,242 @@
+name: DSH rc4 browser UI smoke
+
+on:
+  push:
+    branches: [fix/rc4-icons-and-smoke]
+    paths:
+      - client.js
+      - source-core.js
+      - package.json
+      - cordis.patch.yml
+      - locale/**
+      - .github/workflows/ui-smoke-rc4.yml
+  pull_request:
+    paths:
+      - client.js
+      - source-core.js
+      - package.json
+      - cordis.patch.yml
+      - locale/**
+      - .github/workflows/ui-smoke-rc4.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rc4-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Stolyarovmn/dsh-schedule-tab
+          ref: d57666e6024cdf9fda02e7cf384c11065b00cead
+          path: .schedule-plugin
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install both candidates into real DSH 0.2.1-rc.4
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+        shell: bash
+        run: |
+          set -euo pipefail
+          DSH='pnpm dlx @deepseek-ai/dsh@0.2.1-rc.4'
+          $DSH --profile ui-rc4 --from-default-profile web --dump-config >/tmp/dsh-base-config.txt
+          $DSH plugin --profile ui-rc4 add "file:$GITHUB_WORKSPACE"
+          $DSH plugin --profile ui-rc4 add "file:$GITHUB_WORKSPACE/.schedule-plugin"
+          $DSH --profile ui-rc4 --dump-config >/tmp/dsh-config.txt
+          grep -F '@stolyarovmn/dsh-ui-registry-aggregator' /tmp/dsh-config.txt
+          grep -F '@stolyarovmn/dsh-client-ui-schedule-tab' /tmp/dsh-config.txt
+
+      - name: Start real DSH Web
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dlx @deepseek-ai/dsh@0.2.1-rc.4 --profile ui-rc4 --port 3080 --no-open >/tmp/dsh-web.log 2>&1 &
+          echo $! >/tmp/dsh.pid
+          for i in $(seq 1 60); do
+            grep -Eq 'dsh web: http://127\.0\.0\.1:' /tmp/dsh-web.log && break
+            kill -0 "$(cat /tmp/dsh.pid)" 2>/dev/null || { cat /tmp/dsh-web.log; exit 1; }
+            sleep 1
+          done
+          URL="$(grep -Eo 'http://127\.0\.0\.1:[^[:space:]]+' /tmp/dsh-web.log | head -n1)"
+          test -n "$URL"
+          printf '%s' "$URL" >/tmp/dsh-url.txt
+
+      - name: Verify Plugin Manager, Browse, artwork and Schedule in Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9222 about:blank >/tmp/chrome.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break; sleep 1; done
+          node <<'NODE'
+          const fs = require('node:fs')
+          const sleep = ms => new Promise(r => setTimeout(r, ms))
+          const appUrl = fs.readFileSync('/tmp/dsh-url.txt', 'utf8').trim()
+
+          async function main() {
+            const targets = await fetch('http://127.0.0.1:9222/json/list').then(r => r.json())
+            const page = targets.find(x => x.type === 'page')
+            if (!page?.webSocketDebuggerUrl) throw new Error('Chromium page target not found')
+            const ws = new WebSocket(page.webSocketDebuggerUrl)
+            await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject })
+            let id = 0
+            const pending = new Map()
+            ws.onmessage = e => {
+              const m = JSON.parse(e.data)
+              const p = pending.get(m.id)
+              if (!p) return
+              pending.delete(m.id)
+              m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result)
+            }
+            const call = (method, params = {}) => new Promise((resolve, reject) => {
+              const next = ++id
+              pending.set(next, { resolve, reject })
+              ws.send(JSON.stringify({ id: next, method, params }))
+            })
+            const evalJs = async expression => {
+              const r = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
+              if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'Runtime.evaluate failed')
+              return r.result?.value
+            }
+            const bodyText = () => evalJs('document.body?.innerText || ""')
+            const click = label => evalJs(`(() => {
+              const wanted=${JSON.stringify(label.toLowerCase())}
+              const nodes=[...document.querySelectorAll('button,a,[role="button"],[role="tab"]')]
+              const el=nodes.find(n => (n.textContent||'').trim().toLowerCase()===wanted)
+                || nodes.find(n => [n.getAttribute('aria-label'), n.getAttribute('title')].some(v => v && v.trim().toLowerCase()===wanted))
+              if (!el) return false
+              el.click(); return true
+            })()`)
+            const waitFor = async predicate => {
+              for (let i = 0; i < 60; i++) {
+                const value = await bodyText()
+                if (predicate(value)) return value
+                await sleep(500)
+              }
+              return bodyText()
+            }
+            const shot = async name => {
+              const r = await call('Page.captureScreenshot', { format: 'png', fromSurface: true })
+              fs.writeFileSync('/tmp/' + name, Buffer.from(r.data, 'base64'))
+            }
+            const focusSearch = () => evalJs(`(() => {
+              const i=[...document.querySelectorAll('input')].find(x => {
+                const placeholder=(x.placeholder||'').trim()
+                return placeholder==='Search plugins' || placeholder==='Search enabled registries and catalogs.'
+              })
+              if (!i) return false
+              i.focus(); i.select(); return document.activeElement===i
+            })()`)
+            const artwork = pkg => evalJs(`(() => {
+              const card=[...document.querySelectorAll('.ra-plugin-card')].find(n => n.textContent?.includes(${JSON.stringify(pkg)}))
+              if (!card) return { found:false, cards:[...document.querySelectorAll('.ra-plugin-card')].map(n => (n.textContent||'').trim().slice(0,160)) }
+              const img=card.querySelector('img.ra-plugin-image')
+              return { found:true, image:!!img, src:img?.getAttribute('src')||'', text:(card.textContent||'').trim().slice(0,360) }
+            })()`)
+
+            await call('Page.enable')
+            await call('Runtime.enable')
+            await call('Emulation.setDeviceMetricsOverride', { width:1600, height:1000, deviceScaleFactor:1, mobile:false })
+            await call('Page.navigate', { url: appUrl })
+            await sleep(4500)
+            let body = await bodyText()
+            fs.writeFileSync('/tmp/ui-01-initial.txt', body)
+            await shot('ui-01-initial.png')
+
+            if (/Preview Notice/i.test(body)) {
+              if (!await click('Continue')) throw new Error('Preview Continue button not found')
+              await sleep(900)
+              body = await bodyText()
+              if (/Preview Notice/i.test(body)) throw new Error('Preview Notice did not close')
+            }
+            if (/Choose workspace/i.test(body)) {
+              if (!await click('Choose workspace')) throw new Error('Choose workspace button not found')
+              body = await waitFor(v => /Select Workspace Directory/i.test(v))
+              if (!/Select Workspace Directory/i.test(body)) throw new Error('Workspace browser did not open')
+              await shot('ui-02-workspace-picker.png')
+              if (!await click('Open')) throw new Error('Workspace Open button not found')
+              await sleep(2500)
+            }
+
+            if (!await click('Plugins')) throw new Error('Plugins sidebar control not found')
+            body = await waitFor(v => v.includes('Registry Aggregator') && v.includes('Automation Tasks Attention'))
+            fs.writeFileSync('/tmp/ui-03-plugins.txt', body)
+            await shot('ui-03-plugins.png')
+            if (!body.includes('Registry Aggregator') || !body.includes('Automation Tasks Attention')) {
+              throw new Error('Installed plugin inventory did not load: ' + body.slice(0, 1200))
+            }
+            if (/Get started/i.test(body)) {
+              if (!await click('Close')) throw new Error('Get started dialog is visible but its Close control was not found')
+              await sleep(500)
+              body = await bodyText()
+              if (/Get started/i.test(body)) throw new Error('Get started dialog did not close')
+            }
+
+            if (!await click('Browse')) throw new Error('Browse tab not found')
+            body = await waitFor(v => /Browse plugins/i.test(v))
+            if (!/Browse plugins/i.test(body)) throw new Error('Browse view did not open')
+            await shot('ui-04-browse.png')
+
+            for (const pkg of ['@stolyarovmn/dsh-client-ui-schedule-tab', '@stolyarovmn/dsh-ui-registry-aggregator']) {
+              if (!await focusSearch()) throw new Error('Registry Browse search input not found')
+              await call('Input.dispatchKeyEvent', { type:'keyDown', modifiers:2, windowsVirtualKeyCode:65, nativeVirtualKeyCode:65, key:'a', code:'KeyA' })
+              await call('Input.dispatchKeyEvent', { type:'keyUp', modifiers:2, windowsVirtualKeyCode:65, nativeVirtualKeyCode:65, key:'a', code:'KeyA' })
+              await call('Input.insertText', { text: pkg.split('/').pop() })
+              let result
+              for (let i = 0; i < 40; i++) {
+                await sleep(500)
+                result = await artwork(pkg)
+                if (result?.found && result.image) break
+              }
+              fs.appendFileSync('/tmp/artwork-debug.txt', pkg + '\n' + JSON.stringify(result, null, 2) + '\n')
+              if (!result?.found) throw new Error('Browse did not render ' + pkg + ': ' + JSON.stringify(result))
+              if (!result.image || !result.src.startsWith('data:image/svg+xml;base64,')) throw new Error('SVG artwork missing for ' + pkg + ': ' + JSON.stringify(result))
+              fs.appendFileSync('/tmp/artwork-results.txt', pkg + '\t' + result.src.slice(0, 44) + '\n')
+            }
+
+            fs.writeFileSync('/tmp/ui-05-final.txt', await bodyText())
+            await shot('ui-05-final.png')
+
+            if (!await click('Automation tasks')) throw new Error('Automation tasks sidebar control not found')
+            body = await waitFor(v => v.includes('Automation tasks') && v.includes('New automation task'))
+            fs.writeFileSync('/tmp/ui-06-schedule.txt', body)
+            await shot('ui-06-schedule.png')
+            if (!body.includes('Automation tasks') || !body.includes('New automation task')) {
+              throw new Error('Automation Tasks panel did not mount the native task manager: ' + body.slice(0, 1200))
+            }
+            ws.close()
+          }
+          main().catch(e => { console.error(e); process.exit(1) })
+          NODE
+          cat /tmp/artwork-results.txt
+
+      - name: Reject runtime crashes
+        if: always()
+        shell: bash
+        run: |
+          cat /tmp/dsh-web.log || true
+          ! grep -Eiq 'Failed to load plugins|entry did not activate|web boot: .*failed|slot entry crashed|fatal uncaught exception' /tmp/dsh-web.log
+
+      - name: Upload real UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-0.2.1-rc.4-registry-ui
+          path: |
+            /tmp/ui-*.png
+            /tmp/ui-*.txt
+            /tmp/artwork-results.txt
+            /tmp/artwork-debug.txt
+            /tmp/dsh-web.log
+          if-no-files-found: warn

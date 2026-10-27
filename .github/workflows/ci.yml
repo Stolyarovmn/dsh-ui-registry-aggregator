@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dsh-0.2.0
+      - fix/rc4-icons-and-smoke
   pull_request:
 
 permissions:
@@ -25,9 +26,42 @@ jobs:
           node --check client.js
           node --check source-core.js
       - run: npm test
+      - name: Verify official display-resource export
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          if (pkg.exports?.['./icon'] !== './icon.svg') throw new Error('missing ./icon export')
+          if (!pkg.files?.includes('icon.svg')) throw new Error('icon.svg missing from package files')
+          NODE
+      - name: Probe icons from currently published Stolyarovmn plugins
+        run: |
+          node --input-type=module <<'NODE'
+          import { resolvePluginIcons } from './source-core.js'
+          const items = [
+            { key: 'registry', packageName: '@stolyarovmn/dsh-ui-registry-aggregator', version: '0.5.2' },
+            { key: 'schedule', packageName: '@stolyarovmn/dsh-client-ui-schedule-tab', version: '0.8.0' },
+          ]
+          const rows = await resolvePluginIcons(items)
+          console.log(rows.map(row => ({ key: row.key, hasIcon: Boolean(row.icon), prefix: row.icon?.slice(0, 30) })))
+          for (const key of ['registry', 'schedule']) {
+            const row = rows.find(value => value.key === key)
+            if (!row?.icon?.startsWith('data:image/svg+xml;base64,')) {
+              throw new Error(`published ${key} icon could not be resolved`)
+            }
+          }
+          NODE
       - run: npm pack --dry-run
 
   dsh-install-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        dsh-version:
+          - 0.2.0-rc.2
+          - 0.2.1-rc.2
+          - 0.2.1-rc.3
+          - 0.2.1-rc.4
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,11 +71,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install local plugin into isolated DSH 0.2 profile
+      - name: Install local plugin into isolated DSH profile
         env:
           DSH_HOME: ${{ runner.temp }}/dsh-home
+          DSH_VERSION: ${{ matrix.dsh-version }}
         run: |
-          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 plugin --profile smoke add "file:$GITHUB_WORKSPACE"
-          pnpm dlx @deepseek-ai/dsh@0.2.0-rc.2 --profile smoke --dump-config > /tmp/dsh-config.txt
+          pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile smoke --from-default-profile web --dump-config > /dev/null
+          pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" plugin --profile smoke add "file:$GITHUB_WORKSPACE"
+          pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile smoke --dump-config > /tmp/dsh-config.txt
           grep -F "registry-aggregator" /tmp/dsh-config.txt
           grep -F "@stolyarovmn/dsh-ui-registry-aggregator" /tmp/dsh-config.txt
+      - name: Boot Web
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+          DSH_VERSION: ${{ matrix.dsh-version }}
+        shell: bash
+        run: |
+          set +e
+          timeout 15s pnpm dlx "@deepseek-ai/dsh@$DSH_VERSION" --profile smoke --port 0 --no-open > /tmp/dsh-web.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/dsh-web.log
+          if grep -Eiq "Failed to load plugins|entry did not activate|web boot: .*failed|slot entry crashed" /tmp/dsh-web.log; then
+            exit 1
+          fi
+          if ! grep -Eq "dsh web: http://127\\.0\\.0\\.1:" /tmp/dsh-web.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
+            exit "$STATUS"
+          fi

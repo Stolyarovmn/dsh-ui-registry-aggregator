@@ -2,6 +2,34 @@
 
 All notable changes to Registry Aggregator are documented here.
 
+## [0.5.3-rc.1] - 2026-10-27
+
+### Fixed
+
+- Transient npm/unpkg/GitHub failures while resolving plugin artwork are no longer negative-cached as a confirmed missing icon; a subsequent refresh can retry immediately.
+- Browse artwork discovery now accepts the current DSH display-resource export `exports["./icon"]` as well as the legacy top-level `icon` field.
+- DSH `0.2.1-rc.2+` no longer depends on the `0.2.0-rc.2` DOM polling workaround for main Plugin Manager navigation.
+
+### Changed
+
+- The package now exports `"./icon": "./icon.svg"` while retaining the top-level `icon` field for compatibility.
+- `Sources`, `Browse`, and `Updates` now register through the official DSH `plugins.tab` root slot on DSH `0.2.1`; the old DOM bridge remains only as a compatibility fallback for `0.2.0-rc.2`, where that slot did not exist.
+- The supported `plugins.bundle.config` detail-page surface remains as a fallback/detail UI.
+- CI now probes the already-published Registry Aggregator `0.5.2` and Schedule Tab `0.8.0` artwork directly, proving their SVG assets remain retrievable.
+- DSH install/boot smoke covers `0.2.0-rc.2`, `0.2.1-rc.2`, `0.2.1-rc.3`, and `0.2.1-rc.4`.
+- The release workflow now publishes from `main`, skips versions already present on npm, sends prereleases to the `next` dist-tag, and keeps stable releases on the default npm tag.
+
+### Compatibility
+
+- Peer range remains `>=0.2.0-rc.2 <0.3.0` because every currently tested 0.2.x target in the CI matrix installs and boots successfully.
+- The `0.2.0-rc.2` DOM bridge is explicitly legacy-only; current `0.2.1` targets use native Harness extension points instead of carrying the workaround forward.
+
+### Validation
+
+- JavaScript syntax, repository tests, official display-resource export checks, published-artwork probes, package dry-run, and all four DSH install/boot smoke jobs pass.
+- Real DSH `0.2.1-rc.4` Chromium smoke verifies both candidate packages load into the native Plugin Manager inventory with no plugin/runtime crash before exercising the Registry tabs and artwork path.
+- Final RC4 browser smoke is the merge/release gate for the native `Sources / Browse / Updates` tabs, Browse results, SVG artwork, and Schedule panel.
+
 ## [0.5.2] - 2026-10-06
 
 ### Added
