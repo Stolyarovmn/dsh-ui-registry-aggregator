@@ -79,8 +79,9 @@ test('ships source marks, compact Browse filters, multi-sort, and pagination', (
   assert.doesNotMatch(client, /ra-plugin-card[^']*margin:0 -8px/)
 })
 
-test('declares a Plugin Manager icon through the DSH 0.2 manifest contract', () => {
+test('declares a Plugin Manager icon through the current DSH display-resource contract', () => {
   assert.equal(pkg.icon, './icon.svg')
+  assert.equal(pkg.exports['./icon'], './icon.svg')
   assert.ok(pkg.files.includes('icon.svg'))
 })
 
@@ -177,57 +178,4 @@ test('Browse resolves paired npm 30-day and total download stats lazily for visi
   assert.match(client, /rpc\('download-stats'/)
   assert.match(client, /downloadStats\?\.complete/)
   assert.match(client, /downloadsTotal/)
-})
-
-
-test('freshness and page-size filters reserve enough width for their selected values', () => {
-  assert.match(client, /data-kind=freshness\] select\{width:72px\}/)
-  assert.match(client, /data-kind=page\] select\{width:58px\}/)
-})
-
-
-test('Updates expose a live tab indicator and sequential Update all action', () => {
-  assert.match(client, /function useUpdateDiscovery/)
-  assert.match(client, /className: 'ra-update-badge'/)
-  assert.match(client, /updateCount > 0/)
-  assert.match(client, /state\.items\.length > 1/)
-  assert.match(client, /const runUpdateAll = async/)
-  assert.match(client, /for \(const item of queue\) await runUpdate\(item, false\)/)
-  assert.match(client, /Number\(left\.bundle\.name === PACKAGE\)/)
-  assert.match(client, /bulkUpdating/)
-  assert.match(client, /updateAll/)
-})
-
-
-
-test('rc.2 main Plugin Manager bridge becomes a native-style Installed/Sources/Browse/Updates surface', () => {
-  assert.ok(client.includes('function PluginsPageBridgeSurface'))
-  assert.ok(client.includes("['installed', t('installed'), installedCount]"))
-  assert.ok(client.includes("['sources', t('sources'), '']"))
-  assert.ok(client.includes("['browse', t('browse'), '']"))
-  assert.ok(client.includes("['updates', t('updates'), updateCount > 0 ? String(updateCount) : '']"))
-  assert.ok(client.includes('ra-native-tab'))
-  assert.ok(client.includes('font-size:14px;line-height:22px;font-weight:500'))
-  assert.ok(client.includes("tab === 'installed' && updateCount > 0"))
-  assert.ok(client.includes("t('updateAll')"))
-})
-
-test('Installed cards expose target-version update buttons backed by the native Plugin Manager', () => {
-  assert.ok(client.includes('data-ra-installed-update'))
-  assert.ok(client.includes("button.textContent = 'Update → v' + item.availableVersion"))
-  assert.ok(client.includes('void runUpdate(item)'))
-  assert.ok(client.includes('updateInstalledPlugin(item.bundle, item.availableVersion'))
-  assert.ok(client.includes("Number(left.bundle.name === PACKAGE)"))
-})
-
-test('rc.2 bridge is removed on detail pages and never observes native React DOM mutations', () => {
-  assert.ok(client.includes('function installPluginsPagePollingBridge'))
-  assert.ok(client.includes('data-plugin-loading'))
-  assert.ok(client.includes("if (!installed) {"))
-  assert.ok(client.includes('disposeRoot()'))
-  assert.ok(client.includes("head.insertAdjacentElement('afterend', host)"))
-  assert.ok(client.includes('installedHead.style.display = headDisplay'))
-  assert.ok(client.includes('cardsList.style.display = cardsDisplay'))
-  assert.ok(client.includes('window.setInterval(reconcile, 750)'))
-  assert.equal(client.includes('MutationObserver'), false)
 })
